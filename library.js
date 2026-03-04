@@ -55,6 +55,32 @@ function onAppLoad(data) {
 	data.router.get('/admin/plugins/license-gate', data.middleware.admin.buildHeader, helpers.tryRoute(adminGetSettings));
 	data.router.get('/api/admin/plugins/license-gate', helpers.tryRoute(adminGetSettings));
 	data.router.post('/admin/plugins/license-gate', data.middleware.admin.buildHeader, helpers.tryRoute(adminPostSettings));
+
+	// Clear stale session.registration when there are no interstitials (e.g. after switching
+	// from interstitial to register.build). Runs before the router so registrationComplete won't redirect.
+	data.app.use(clearStaleRegistrationSession);
+}
+
+async function clearStaleRegistrationSession(req, res, next) {
+	if (!req.session || !req.session.hasOwnProperty('registration')) {
+		return setImmediate(next);
+	}
+	const path = req.path.startsWith('/api/') ? req.path.replace('/api', '') : req.path;
+	// Don't clear when user is on register/complete or confirm (path may include relative_path)
+	if (path.endsWith('/register/complete') || path.includes('/confirm/')) {
+		return setImmediate(next);
+	}
+	try {
+		const user = require.main.require('./src/user');
+		const data = await user.interstitials.get(req, req.session.registration);
+		if (data.interstitials.length === 0) {
+			delete req.session.registration;
+			winston.verbose(`[${PLUGIN_ID}] Cleared stale session.registration (no interstitials to complete).`);
+		}
+	} catch (err) {
+		winston.warn(`[${PLUGIN_ID}] clearStaleRegistrationSession: ${err.message}`);
+	}
+	setImmediate(next);
 }
 
 async function getSettings() {
