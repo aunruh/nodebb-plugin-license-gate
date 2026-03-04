@@ -45,9 +45,10 @@ A valid key returns JSON with `result: "success"`. Blocked keys can be rejected 
    ```bash
    npm install nodebb-plugin-license-gate
    ```
-2. Build NodeBB so the plugin template is compiled:
+2. Build NodeBB so the plugin template and client module are included (required; avoids "Cannot find module './registerComplete'" on the Complete registration page):
    ```bash
    ./nodebb build
    ```
+   On Windows: `node nodebb build`
 3. In the NodeBB Admin Control Panel, go to **Extend > Plugins** and activate **License Gate**.
 4. Click **License Gate** in the Plugins section of the admin sidebar and enter your API URL and secret key.

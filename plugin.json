@@ -9,5 +9,8 @@
     { "hook": "static:app.load", "method": "onAppLoad" },
     { "hook": "filter:admin.header.build", "method": "addAdminNavigation" }
   ],
-  "templates": "templates"
+  "templates": "templates",
+  "modules": {
+    "forum/registerComplete": "static/registerComplete.js"
+  }
 }
