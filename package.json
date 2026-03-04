@@ -1,0 +1,21 @@
+{
+  "name": "nodebb-plugin-license-gate",
+  "version": "1.0.0",
+  "description": "Restrict forum registration to users with a valid license key from your WordPress License Manager",
+  "main": "library.js",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "keywords": [
+    "nodebb",
+    "plugin",
+    "license",
+    "registration",
+    "wordpress"
+  ],
+  "license": "MIT",
+  "nbbpm": {
+    "compatibility": "^3.0.0"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "nodebb-plugin-license-gate",
+  "name": "License Gate",
+  "description": "Requires a valid license key (from your WordPress License Manager) to register on the forum.",
+  "url": "https://github.com/yourname/nodebb-plugin-license-gate",
+  "library": "./library.js",
+  "hooks": [
+    { "hook": "filter:register.interstitial", "method": "addLicenseInterstitial" },
+    { "hook": "static:app.load", "method": "onAppLoad" },
+    { "hook": "filter:admin.header.build", "method": "addAdminNavigation" }
+  ],
+  "templates": "templates"
+}
