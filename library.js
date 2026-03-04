@@ -124,37 +124,56 @@ async function validateWithLicenseManager(licenseKey, settings) {
 }
 
 /**
- * Add the license key interstitial to the registration flow.
- * Users must enter a valid license key (checked against the WordPress API) to complete registration.
+ * Add the license key field to the main registration form (same pattern as nodebb-plugin-registration-question).
+ * Fired via filter:register.build from the render middleware.
  */
-async function addLicenseInterstitial(data) {
-	if (!data.userData) {
-		return data;
-	}
-
+async function addLicenseField(params) {
 	const settings = await getSettings();
 	if (!settings.apiUrl || !settings.secretKey) {
-		winston.warn(`[${PLUGIN_ID}] License gate is active but apiUrl or secretKey is not configured. Skipping interstitial.`);
-		return data;
+		return params;
 	}
 
-	data.interstitials.push({
-		template: 'partials/license_key',
-		data: {},
-		callback: async (userData, formData) => {
-			const key = (formData.license_key || '').trim();
-			if (!key) {
-				throw new Error('Please enter your license key.');
-			}
-			await validateWithLicenseManager(key, settings);
-		},
-	});
+	const inputId = 'license_key';
+	const entry = {
+		label: 'License key',
+		inputId,
+		styleName: '',
+		html: [
+			'<input class="form-control" type="text" name="' + inputId + '" id="' + inputId + '" placeholder="Enter your license key" autocomplete="off" aria-required="true" />',
+			'<span class="form-text text-xs">Your key is validated against the license manager.</span>',
+		].join('\n'),
+	};
 
-	return data;
+	if (params.templateData.regFormEntry && Array.isArray(params.templateData.regFormEntry)) {
+		params.templateData.regFormEntry.push(entry);
+	} else {
+		params.templateData.regFormEntry = [entry];
+	}
+
+	return params;
+}
+
+/**
+ * Validate the license key on form submit (filter:register.check). Same pattern as registration-question.
+ */
+async function checkLicenseKey(params) {
+	const settings = await getSettings();
+	if (!settings.apiUrl || !settings.secretKey) {
+		return params;
+	}
+
+	const key = (params.req.body && params.req.body.license_key) ? String(params.req.body.license_key).trim() : '';
+	if (!key) {
+		throw new Error('Please enter your license key.');
+	}
+
+	await validateWithLicenseManager(key, settings);
+	return params;
 }
 
 module.exports = {
-	addLicenseInterstitial,
+	addLicenseField,
+	checkLicenseKey,
 	addAdminNavigation,
 	onAppLoad,
 	getSettings,

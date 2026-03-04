@@ -5,12 +5,13 @@
   "url": "https://github.com/yourname/nodebb-plugin-license-gate",
   "library": "./library.js",
   "hooks": [
-    { "hook": "filter:register.interstitial", "method": "addLicenseInterstitial" },
+    { "hook": "filter:register.build", "method": "addLicenseField" },
+    { "hook": "filter:register.check", "method": "checkLicenseKey" },
     { "hook": "static:app.load", "method": "onAppLoad" },
     { "hook": "filter:admin.header.build", "method": "addAdminNavigation" }
   ],
   "templates": "templates",
-  "modules": {
-    "forum/registerComplete": "static/registerComplete.js"
-  }
+  "scripts": [
+    "static/lib/main.js"
+  ]
 }

@@ -6,10 +6,11 @@ Restricts forum registration to users who have a valid license key in your WordP
 
 ## How it works
 
-1. User fills in the normal registration form (username, password, etc.) and submits.
-2. They are sent to the "Complete registration" page, where they must enter a **license key**.
-3. The plugin calls your WordPress License Manager API (`slm_check`) to validate the key.
-4. If the key is valid, registration completes. If not, an error is shown and they can try again.
+Same pattern as [nodebb-plugin-registration-question](https://www.npmjs.com/package/@nodebb/nodebb-plugin-registration-question): the **license key** field is added to the main registration form (one page with username, password, and license key).
+
+1. User fills in the registration form: username, password, and **license key**.
+2. On submit, the plugin calls your WordPress License Manager API (`slm_check`) to validate the key.
+3. If the key is valid, registration completes. If not, an error is shown and they can try again.
 
 ## Configuration
 
@@ -45,7 +46,7 @@ A valid key returns JSON with `result: "success"`. Blocked keys can be rejected 
    ```bash
    npm install nodebb-plugin-license-gate
    ```
-2. Build NodeBB so the plugin template and client module are included (required; avoids "Cannot find module './registerComplete'" on the Complete registration page):
+2. Build NodeBB so the plugin template and client script are included:
    ```bash
    ./nodebb build
    ```
