@@ -15,7 +15,11 @@ const SETTINGS_HASH = 'nodebb-plugin-license-gate';
 
 function addAdminNavigation(data) {
 	data.plugins = data.plugins || [];
-	data.plugins.push({ route: '/plugins/license-gate', name: 'License Gate' });
+	data.plugins.push({
+		route: '/plugins/license-gate',
+		icon: 'fa-key',
+		name: 'License Gate',
+	});
 	return data;
 }
 
@@ -46,10 +50,11 @@ async function adminPostSettings(req, res) {
 }
 
 function onAppLoad(data) {
-	const { router, middleware } = data;
 	const helpers = require.main.require('./src/routes/helpers');
-	router.get('/admin/plugins/license-gate', middleware.autoLocale, middleware.admin.buildHeader, [middleware.pluginHooks], helpers.tryRoute(adminGetSettings));
-	router.post('/admin/plugins/license-gate', middleware.autoLocale, middleware.admin.buildHeader, [middleware.pluginHooks], helpers.tryRoute(adminPostSettings));
+	// Match pattern from nodebb-plugin-emailer-sendgrid: buildHeader + render, and API route for admin
+	data.router.get('/admin/plugins/license-gate', data.middleware.admin.buildHeader, helpers.tryRoute(adminGetSettings));
+	data.router.get('/api/admin/plugins/license-gate', helpers.tryRoute(adminGetSettings));
+	data.router.post('/admin/plugins/license-gate', data.middleware.admin.buildHeader, helpers.tryRoute(adminPostSettings));
 }
 
 async function getSettings() {
