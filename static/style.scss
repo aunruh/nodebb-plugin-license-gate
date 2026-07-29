@@ -29,12 +29,14 @@
 	background: var(--bs-primary-bg-subtle);
 }
 
-.license-gate-other-licenses > summary {
+.license-gate-other-licenses > summary,
+.license-gate-manage-licenses > summary {
 	cursor: pointer;
 	list-style-position: inside;
 }
 
-.license-gate-other-licenses[open] > summary {
+.license-gate-other-licenses[open] > summary,
+.license-gate-manage-licenses[open] > summary {
 	border-bottom: 0;
 }
 

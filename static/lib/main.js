@@ -354,9 +354,7 @@ $(function () {
 		var emailDescription = forumEmail ?
 			'Your forum account uses <strong>' + escapeHtml(forumEmail) + '</strong>. If the license is registered to this email address, we will connect it immediately. If it is registered to a different email address, we will send a confirmation link to the license owner. Once confirmed, the license will be connected and included when we calculate your support availability.' :
 			'If the license is registered to your forum account email, we will connect it immediately. If it is registered to a different email address, we will send a confirmation link to the license owner. Once confirmed, the license will be connected and included when we calculate your support availability.';
-
-		return summary + renderSupportPasses(status.supportPasses, status) +
-			'<h6 class="fw-semibold mt-4">Your licenses</h6>' +
+		var licenseTools =
 			'<p class="small text-body-secondary">We use your most recent license purchase or paid upgrade to calculate included support.</p>' +
 			renderKeys(status.keys, status) +
 			'<hr class="my-4">' +
@@ -369,6 +367,11 @@ $(function () {
 					'<button class="btn btn-primary" type="submit">Connect license</button>' +
 				'</div>' +
 			'</form>';
+		var licenseSection = status.canPost && status.activeSource === 'payment' ?
+			'<details class="license-gate-manage-licenses border rounded-2 mt-4"><summary class="fw-semibold p-3">Manage connected licenses</summary><div class="border-top p-3">' + licenseTools + '</div></details>' :
+			'<h6 class="fw-semibold mt-4">Your licenses</h6>' + licenseTools;
+
+		return summary + renderSupportPasses(status.supportPasses, status) + licenseSection;
 	}
 
 	function bindClaimForm(modal) {
