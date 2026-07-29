@@ -14,5 +14,8 @@
   "templates": "templates",
   "scripts": [
     "static/lib/main.js"
+  ],
+  "scss": [
+    "static/style.scss"
   ]
 }

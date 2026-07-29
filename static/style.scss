@@ -1,0 +1,49 @@
+.license-gate-support-summary {
+	font-size: 0.75rem;
+}
+
+.license-gate-support-dot {
+	width: 0.625rem;
+	height: 0.625rem;
+	border-radius: 50%;
+	flex: 0 0 auto;
+}
+
+.license-gate-modal .modal-dialog {
+	max-width: 760px;
+}
+
+.license-gate-modal .modal-content {
+	max-height: calc(100vh - 3rem);
+}
+
+.license-gate-modal .modal-body {
+	overflow-y: auto;
+}
+
+.license-gate-featured-license {
+	background: var(--bs-primary-bg-subtle);
+}
+
+.license-gate-other-licenses > summary {
+	cursor: pointer;
+	list-style-position: inside;
+}
+
+.license-gate-other-licenses[open] > summary {
+	border-bottom: 0;
+}
+
+@media (max-width: 767.98px) {
+	.license-gate-support-summary {
+		gap: 0.5rem !important;
+	}
+
+	.license-gate-support-summary .btn {
+		font-size: 0.75rem;
+	}
+
+	.license-gate-modal .modal-content {
+		max-height: calc(100vh - 1rem);
+	}
+}
