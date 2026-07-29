@@ -214,14 +214,17 @@ async function syncSupportAccount(uid, settings, { discover = false } = {}) {
 	const cacheKey = `${PLUGIN_ID}:discovery:${uid}`;
 	const cache = await db.getObject(cacheKey);
 	const lastDiscovery = Number(cache?.timestamp || 0);
-	const shouldDiscover = cache?.email !== account.email || Date.now() - lastDiscovery >= DISCOVERY_INTERVAL_MS;
+	const serviceUrl = new URL(settings.supportServiceUrl).origin;
+	const shouldDiscover = cache?.email !== account.email ||
+		cache?.serviceUrl !== serviceUrl ||
+		Date.now() - lastDiscovery >= DISCOVERY_INTERVAL_MS;
 	if (!shouldDiscover) {
 		return account;
 	}
 
 	try {
 		await supportServiceRequest(`/v1/accounts/${uid}/discover-licenses`, settings, { method: 'POST' });
-		await db.setObject(cacheKey, { email: account.email, timestamp: Date.now() });
+		await db.setObject(cacheKey, { email: account.email, serviceUrl, timestamp: Date.now() });
 		await db.pexpire(cacheKey, DISCOVERY_INTERVAL_MS);
 	} catch (error) {
 		winston.warn(`[${PLUGIN_ID}] Automatic license discovery failed for uid ${uid}: ${error.message}`);
