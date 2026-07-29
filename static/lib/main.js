@@ -260,7 +260,7 @@ $(function () {
 		}
 		var summary = status.canPost ?
 			'<div class="alert alert-success"><strong>Your forum support is active.</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ' — ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
-			'<div class="alert alert-warning"><strong>Your included forum support ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>You can continue reading the forum and receiving free Lay Theme updates. A one-year support pass will be available here soon.</div>' + renderSupportPolicy(status);
+			'<div class="alert alert-warning"><strong>Your included forum support ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>You can still post for now while support payments are being set up. Soon, you will be able to purchase another year of support here. If you have another Lay Theme license that is not connected yet, enter it below—your most recent eligible purchase or paid upgrade may extend your included support.</div>' + renderSupportPolicy(status);
 
 		var forumEmail = app.user && app.user.email ? String(app.user.email) : '';
 		var emailDescription = forumEmail ?
