@@ -164,10 +164,7 @@ async function addLicenseField(params) {
 		label: 'License key',
 		inputId,
 		styleName: '',
-		html: [
-			'<input class="form-control" type="text" name="' + inputId + '" id="' + inputId + '" placeholder="Enter your license key" autocomplete="off" aria-required="true" />',
-			'<span class="form-text text-xs">Your key is validated against the license manager.</span>',
-		].join('\n'),
+		html: '<input class="form-control" type="text" name="' + inputId + '" id="' + inputId + '" placeholder="Enter your license key" autocomplete="off" aria-required="true" />',
 	};
 
 	if (params.templateData.regFormEntry && Array.isArray(params.templateData.regFormEntry)) {
