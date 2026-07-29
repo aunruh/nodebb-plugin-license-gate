@@ -60,11 +60,42 @@ $(function () {
 	function applyLocalSupportPreview(status) {
 		var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 		var preview = new URLSearchParams(window.location.search).get('support-preview');
-		if (!isLocal || preview !== 'expired') {
+		if (!isLocal || (preview !== 'expired' && preview !== 'pass')) {
 			return status;
+		}
+		if (preview === 'pass') {
+			var purchasedAt = new Date(Date.now() - (14 * 86400000));
+			var endsAt = new Date(purchasedAt);
+			endsAt.setUTCFullYear(endsAt.getUTCFullYear() + 1);
+			var policy = status.policy || {};
+			return Object.assign({}, status, {
+				canPost: true,
+				activeSource: 'payment',
+				activeSourceId: 'preview-support-pass',
+				activePolicy: 'payment',
+				daysRemaining: Math.ceil((endsAt.getTime() - Date.now()) / 86400000),
+				supportUntil: endsAt.toISOString(),
+				keys: (status.keys || []).map(function (key) {
+					return Object.assign({}, key, { determinesSupport: false });
+				}),
+				supportPasses: [{
+					id: 'preview-support-pass',
+					source: 'payment',
+					purchasedAt: purchasedAt.toISOString(),
+					startsAt: purchasedAt.toISOString(),
+					endsAt: endsAt.toISOString(),
+					provider: 'preview',
+					amountMinor: policy.priceMinor || 2000,
+					currency: policy.currency || 'EUR',
+					revokedAt: null,
+					determinesSupport: true,
+				}],
+			});
 		}
 		return Object.assign({}, status, {
 			canPost: false,
+			activeSource: null,
+			activeSourceId: null,
 			daysRemaining: 0,
 			supportUntil: new Date(Date.now() - (30 * 86400000)).toISOString(),
 		});
@@ -254,9 +285,10 @@ $(function () {
 		if (!keys || !keys.length) {
 			return '<p class="text-body-secondary mb-0">No license has been connected to this forum account yet.</p>';
 		}
-		var featured = keys.find(function (key) { return key.determinesSupport; }) || keys[0];
-		var others = keys.filter(function (key) { return key.id !== featured.id; });
-		var result = '<div class="list-group border rounded-2 overflow-hidden">' + renderKey(featured, status, true) + '</div>';
+		var featured = keys.find(function (key) { return key.determinesSupport; }) || null;
+		var primary = featured || keys[0];
+		var others = keys.filter(function (key) { return key.id !== primary.id; });
+		var result = '<div class="list-group border rounded-2 overflow-hidden">' + renderKey(primary, status, Boolean(featured)) + '</div>';
 		if (others.length) {
 			result += '<details class="license-gate-other-licenses border rounded-2 mt-3">' +
 				'<summary class="fw-semibold p-3">Other connected licenses (' + others.length + ')</summary>' +
@@ -268,20 +300,62 @@ $(function () {
 		return result;
 	}
 
+	function renderSupportPass(pass, status) {
+		var active = pass.determinesSupport && status.canPost && !pass.revokedAt;
+		var paidMonths = (status.policy || {}).paidMonths || 12;
+		var passDuration = paidMonths % 12 === 0 ? (paidMonths / 12) + '-Year' : paidMonths + '-Month';
+		var title = pass.source === 'admin' ? 'Forum Support Access' : passDuration + ' Forum Support Pass';
+		var purchaseLabel = pass.source === 'admin' ? 'Granted ' : 'Purchased ';
+		var price = pass.amountMinor != null ? ' · ' + formatPrice(pass.amountMinor, pass.currency) : '';
+		var badge = pass.revokedAt ?
+			'<span class="badge text-bg-secondary">Refunded</span>' :
+			(active ? '<span class="badge text-bg-primary">Currently providing forum support</span>' : '');
+		return '<div class="list-group-item ' + (active ? 'license-gate-featured-support-pass' : '') + '">' +
+			'<div class="d-flex align-items-center gap-2 flex-wrap">' +
+				'<i class="fa fa-headset" aria-hidden="true"></i>' +
+				'<strong>' + escapeHtml(title) + '</strong>' + badge +
+			'</div>' +
+			'<div class="small text-body-secondary mt-2">' + purchaseLabel + escapeHtml(formatDate(pass.purchasedAt)) + escapeHtml(price) + '</div>' +
+			'<div class="small text-body-secondary">Valid ' + escapeHtml(formatDate(pass.startsAt)) + ' – ' + escapeHtml(formatDate(pass.endsAt)) + '</div>' +
+			(active ? '<div class="small mt-2"><i class="fa fa-check-circle text-success me-1" aria-hidden="true"></i>This support pass is currently providing your forum support.</div>' : '') +
+		'</div>';
+	}
+
+	function renderSupportPasses(passes, status) {
+		if (!passes || !passes.length) {
+			return '';
+		}
+		return '<h6 class="fw-semibold mt-4">Your support passes</h6>' +
+			'<p class="small text-body-secondary">Support passes belong to this forum account and are independent of individual license keys.</p>' +
+			'<div class="list-group border rounded-2 overflow-hidden">' + passes.map(function (pass) {
+				return renderSupportPass(pass, status);
+			}).join('') + '</div>';
+	}
+
+	function renderSupportCheckout(status) {
+		var policy = status.policy || {};
+		var label = 'Purchase ' + formatDuration(policy.paidMonths || 12) + ' of support — ' + formatPrice(policy.priceMinor || 2000, policy.currency || 'EUR');
+		if (status.checkoutAvailable) {
+			return '<button type="button" class="btn btn-primary" data-support-checkout>' + escapeHtml(label) + '</button>';
+		}
+		return '<button type="button" class="btn btn-primary" disabled>Purchase 1 year of support — coming soon</button>';
+	}
+
 	function renderStatus(status) {
 		if (status.unavailable) {
 			return '<div class="alert alert-secondary mb-3"><strong>Support status is unavailable.</strong><br><span class="small">' + escapeHtml(status.message || 'Please try again later.') + '</span></div>';
 		}
+		var activeTitle = status.activeSource === 'payment' ? 'Your support pass is active.' : 'Your forum support is active.';
 		var summary = status.canPost ?
-			'<div class="alert alert-success"><strong>Your forum support is active.</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ' — ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
-			'<div class="alert alert-warning"><strong>Your included forum support ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>You can still post for now while support payments are being set up. Soon, you will be able to purchase another year of support here. If you have another Lay Theme license that is not connected yet, enter it below—your most recent eligible purchase or paid upgrade may extend your included support.</div>' + renderSupportPolicy(status);
+			'<div class="alert alert-success"><strong>' + activeTitle + '</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ' — ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
+			'<div class="alert alert-warning"><strong>Your included forum support ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>You can still post for now while support payments are being set up. Soon, you will be able to purchase another year of support here. If you have another Lay Theme license that is not connected yet, enter it below—your most recent eligible purchase or paid upgrade may extend your included support.<div class="mt-3">' + renderSupportCheckout(status) + '</div></div>' + renderSupportPolicy(status);
 
 		var forumEmail = app.user && app.user.email ? String(app.user.email) : '';
 		var emailDescription = forumEmail ?
 			'Your forum account uses <strong>' + escapeHtml(forumEmail) + '</strong>. If the license is registered to this email address, we will connect it immediately. If it is registered to a different email address, we will send a confirmation link to the license owner. Once confirmed, the license will be connected and included when we calculate your support availability.' :
 			'If the license is registered to your forum account email, we will connect it immediately. If it is registered to a different email address, we will send a confirmation link to the license owner. Once confirmed, the license will be connected and included when we calculate your support availability.';
 
-		return summary +
+		return summary + renderSupportPasses(status.supportPasses, status) +
 			'<h6 class="fw-semibold mt-4">Your licenses</h6>' +
 			'<p class="small text-body-secondary">We use your most recent license purchase or paid upgrade to calculate included support.</p>' +
 			renderKeys(status.keys, status) +
@@ -306,6 +380,21 @@ $(function () {
 			button.attr('aria-label', showing ? 'Show full license key' : 'Hide full license key');
 			button.attr('title', showing ? 'Show full license key' : 'Hide full license key');
 			button.find('i').toggleClass('fa-eye', showing).toggleClass('fa-eye-slash', !showing);
+		});
+		modal.off('click.licenseGateCheckout').on('click.licenseGateCheckout', '[data-support-checkout]', function () {
+			var button = $(this);
+			var originalLabel = button.text();
+			button.prop('disabled', true).text('Opening secure checkout…');
+			require(['api', 'alerts'], function (api, alerts) {
+				api.post('/plugins/license-gate/support-checkout', {})
+					.then(function (result) {
+						window.location.assign(result.checkoutUrl);
+					})
+					.catch(function (error) {
+						alerts.error(error);
+						button.prop('disabled', false).text(originalLabel);
+					});
+			});
 		});
 		modal.find('[data-support-claim-form]').on('submit', function (event) {
 			event.preventDefault();

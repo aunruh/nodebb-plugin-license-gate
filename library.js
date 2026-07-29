@@ -95,6 +95,16 @@ async function addApiRoutes({ router, middleware, helpers }) {
 		});
 		helpers.formatApiResponse(200, res, result);
 	});
+
+	routeHelpers.setupApiRoute(router, 'post', '/license-gate/support-checkout', middlewares, async (req, res) => {
+		const settings = await getSettings();
+		assertSupportIntegration(settings);
+		await syncSupportAccount(req.uid, settings);
+		const result = await supportServiceRequest(`/v1/accounts/${req.uid}/checkout`, settings, {
+			method: 'POST',
+		});
+		helpers.formatApiResponse(200, res, result);
+	});
 }
 
 function onAppLoad(data) {

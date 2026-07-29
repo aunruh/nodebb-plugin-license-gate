@@ -42,15 +42,16 @@ A valid key returns JSON with `result: "success"`. Blocked keys can be rejected 
 
 ## Support status integration
 
-The optional support integration is deliberately read-only in this release. It shows entitlement information but does not restrict posting yet.
+The optional support integration does not restrict posting yet. It displays account-bound support entitlements and exposes checkout only when the support service reports that a payment provider is available.
 
 When enabled, the plugin:
 
 1. Synchronizes the logged-in NodeBB account with the support service.
 2. Automatically discovers licenses using the forum account email once per 24 hours.
 3. Adds a **Support** item to the Harmony desktop and mobile navigation.
-4. Shows masked licenses, purchase and renewal dates, and remaining support time.
+4. Shows support passes separately from masked licenses, purchases, paid upgrades, and remaining support time.
 5. Lets a user connect another key. A different license-owner email triggers the service's confirmation-email flow.
+6. Starts the provider-independent support checkout when payments are enabled; otherwise it displays a coming-soon button.
 
 Configure these values in **Extend > Plugins > License Gate**:
 
