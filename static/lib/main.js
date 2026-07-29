@@ -13,11 +13,55 @@ $(function () {
 		if (!value) {
 			return '—';
 		}
-		return new Intl.DateTimeFormat(undefined, {
+		return new Intl.DateTimeFormat('en-GB', {
 			year: 'numeric',
 			month: 'short',
 			day: 'numeric',
 		}).format(new Date(value));
+	}
+
+	function formatLongDate(value) {
+		return new Intl.DateTimeFormat('en-GB', {
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric',
+		}).format(new Date(value));
+	}
+
+	function formatDuration(months) {
+		if (months % 12 === 0) {
+			var years = months / 12;
+			return years + ' year' + (years === 1 ? '' : 's');
+		}
+		return months + ' month' + (months === 1 ? '' : 's');
+	}
+
+	function formatPrice(minor, currency) {
+		var amount = Number(minor || 0) / 100;
+		return new Intl.NumberFormat('en-GB', {
+			style: 'currency',
+			currency: currency || 'EUR',
+			minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+			maximumFractionDigits: 2,
+		}).format(amount);
+	}
+
+	function renderSupportPolicy(status) {
+		var policy = status.policy || {
+			effectiveAt: '2026-07-29T00:00:00.000Z',
+			standardMonths: 12,
+			legacyMonths: 24,
+			paidMonths: 12,
+			priceMinor: 2000,
+			currency: 'EUR',
+		};
+		return '<div class="mt-4">' +
+			'<h5 class="fw-semibold">Thank you for using Lay Theme</h5>' +
+			'<p>Lay Theme has always included free updates and personal forum support. I still release updates—often every week—and I love that many people come back to rebuild their websites with Lay Theme years later.</p>' +
+			'<p>When I first offered free support, I honestly did not expect support questions to continue five, six, or even ten years after a purchase. I completely understand why a new website can bring new questions, but providing personal support indefinitely is no longer sustainable for a small independent project.</p>' +
+			'<p>To keep support personal and reliable, purchases or renewals from <strong>' + escapeHtml(formatLongDate(policy.effectiveAt)) + '</strong> include <strong>' + escapeHtml(formatDuration(policy.standardMonths)) + '</strong> of forum support. Earlier purchases include <strong>' + escapeHtml(formatDuration(policy.legacyMonths)) + '</strong> after the most recent purchase or renewal. After that, a <strong>' + escapeHtml(formatPrice(policy.priceMinor, policy.currency)) + ' support pass</strong> provides another ' + escapeHtml(formatDuration(policy.paidMonths)) + '.</p>' +
+			'<p class="mb-0">Lay Theme updates remain free, and you can always continue reading the forum.</p>' +
+		'</div>';
 	}
 
 	function addSupportButtons() {
@@ -116,7 +160,7 @@ $(function () {
 		}
 		var summary = status.canPost ?
 			'<div class="alert alert-success"><strong>Support is active.</strong><br>You can post support questions for another ' + escapeHtml(status.monthsRemaining) + ' month' + (status.monthsRemaining === 1 ? '' : 's') + ', until ' + escapeHtml(formatDate(status.supportUntil)) + '.</div>' :
-			'<div class="alert alert-warning"><strong>Your included support has expired.</strong><br>You can continue reading the forum. A paid support option will be available here later.</div>';
+			'<div class="alert alert-warning"><strong>Your included forum support has ended.</strong><br>You can continue reading the forum and receiving free Lay Theme updates. A one-year support pass will be available here soon.</div>' + renderSupportPolicy(status);
 
 		return summary +
 			'<h6 class="fw-semibold mt-4">Connected licenses</h6>' + renderKeys(status.keys) +
