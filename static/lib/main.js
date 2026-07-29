@@ -109,7 +109,7 @@ $(function () {
 			var item = $(
 				'<li component="license-gate/support" class="nav-item mx-2" title="Lay Theme support">' +
 					'<button type="button" class="nav-link d-flex gap-2 align-items-center text-truncate border-0 bg-transparent w-100" aria-label="Open Lay Theme support status">' +
-						'<span class="position-relative"><i class="fa fa-fw fa-life-ring" data-support-icon></i></span>' +
+						'<span class="position-relative"><i class="fa fa-fw fa-headset" data-support-icon></i></span>' +
 						'<span class="nav-text small visible-open fw-semibold text-truncate" data-support-label>Support</span>' +
 					'</button>' +
 				'</li>'
