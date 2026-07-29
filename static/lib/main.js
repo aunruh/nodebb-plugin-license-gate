@@ -354,8 +354,11 @@ $(function () {
 		var emailDescription = forumEmail ?
 			'Your forum account uses <strong>' + escapeHtml(forumEmail) + '</strong>. If the license is registered to this email address, we will connect it immediately. If it is registered to a different email address, we will send a confirmation link to the license owner. Once confirmed, the license will be connected and included when we calculate your support availability.' :
 			'If the license is registered to your forum account email, we will connect it immediately. If it is registered to a different email address, we will send a confirmation link to the license owner. Once confirmed, the license will be connected and included when we calculate your support availability.';
+		var licenseDescription = status.canPost && status.activeSource === 'payment' ?
+			'Your current support is provided by the pass above. Your connected licenses remain available here for reference.' :
+			'We use your most recent license purchase or paid upgrade to calculate included support.';
 		var licenseTools =
-			'<p class="small text-body-secondary">We use your most recent license purchase or paid upgrade to calculate included support.</p>' +
+			'<p class="small text-body-secondary">' + licenseDescription + '</p>' +
 			renderKeys(status.keys, status) +
 			'<hr class="my-4">' +
 			'<h6 class="fw-semibold">Connect another license</h6>' +
