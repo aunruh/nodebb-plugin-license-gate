@@ -1,7 +1,7 @@
 {
   "name": "nodebb-plugin-license-gate",
-  "version": "1.0.0",
-  "description": "Restrict forum registration to users with a valid license key from your WordPress License Manager",
+  "version": "1.1.0",
+  "description": "Validate Lay Theme licenses and show forum support entitlement status in NodeBB",
   "main": "library.js",
   "repository": {
     "type": "git",
@@ -16,6 +16,6 @@
   ],
   "license": "MIT",
   "nbbpm": {
-    "compatibility": "^3.0.0"
+    "compatibility": "^4.0.0"
   }
 }

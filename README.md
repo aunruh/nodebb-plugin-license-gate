@@ -2,7 +2,7 @@ for use with: https://de.wordpress.org/plugins/software-license-manager/
 
 # nodebb-plugin-license-gate
 
-Restricts forum registration to users who have a valid license key in your WordPress License Manager (e.g. [Software License Manager](https://github.com/your-repo/software-license-manager) at `http://x.x.x.x/`).
+Validates Lay Theme license keys during registration and connects NodeBB accounts to the separate Lay Support Key Gate service.
 
 ## How it works
 
@@ -39,6 +39,35 @@ The plugin uses the **slm_check** action:
 - `license_key=<user-entered key>`
 
 A valid key returns JSON with `result: "success"`. Blocked keys can be rejected by configuring the plugin to reject `status === 'blocked'` (default: enabled).
+
+## Support status integration
+
+The optional support integration is deliberately read-only in this release. It shows entitlement information but does not restrict posting yet.
+
+When enabled, the plugin:
+
+1. Synchronizes the logged-in NodeBB account with the support service.
+2. Automatically discovers licenses using the forum account email once per 24 hours.
+3. Adds a **Support** item to the Harmony desktop and mobile navigation.
+4. Shows masked licenses, purchase and renewal dates, and remaining support time.
+5. Lets a user connect another key. A different license-owner email triggers the service's confirmation-email flow.
+
+Configure these values in **Extend > Plugins > License Gate**:
+
+- **Enable support status integration**
+- **Service URL** – `http://localhost:3002/` for local development or the Railway URL in production
+- **NodeBB API key** – must match `NODEBB_API_KEY` in the support service
+
+The API key is only used by the NodeBB server and is never exposed to browser JavaScript.
+
+The plugin calls:
+
+- `POST /v1/accounts/sync`
+- `POST /v1/accounts/:uid/discover-licenses`
+- `GET /v1/accounts/:uid/support-status`
+- `POST /v1/license-claims`
+
+Registration continues to use the existing WordPress License Manager connection during this rollout.
 
 ## Installation
 

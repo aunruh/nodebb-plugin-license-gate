@@ -3,13 +3,23 @@
 const http = require('http');
 const https = require('https');
 const { URL } = require('url');
-const nconf = require('nconf');
+const nconf = require.main.require('nconf');
 
 const meta = require.main.require('./src/meta');
+const db = require.main.require('./src/database');
+const user = require.main.require('./src/user');
 const winston = require.main.require('winston');
 
 const PLUGIN_ID = 'nodebb-plugin-license-gate';
 const SETTINGS_HASH = 'nodebb-plugin-license-gate';
+const DISCOVERY_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+function asBoolean(value, fallback) {
+	if (value === undefined || value === null || value === '') {
+		return fallback;
+	}
+	return value === true || value === 'true' || value === 'on' || value === 1 || value === '1';
+}
 
 /* ---------- Admin settings page ---------- */
 
@@ -31,7 +41,10 @@ async function adminGetSettings(req, res) {
 		hideSave: true,
 		apiUrl: settings.apiUrl || '',
 		secretKey: settings.secretKey || '',
-		rejectBlocked: settings.rejectBlocked !== false,
+		rejectBlocked: asBoolean(settings.rejectBlocked, true),
+		supportEnabled: asBoolean(settings.supportEnabled, false),
+		supportServiceUrl: settings.supportServiceUrl || '',
+		supportServiceApiKey: settings.supportServiceApiKey || '',
 		success: success && success.length ? success[0] : '',
 	});
 }
@@ -40,13 +53,48 @@ async function adminPostSettings(req, res) {
 	const apiUrl = (req.body.apiUrl || '').trim();
 	const secretKey = (req.body.secretKey || '').trim();
 	const rejectBlocked = req.body.rejectBlocked === 'on';
+	const supportEnabled = req.body.supportEnabled === 'on';
+	const supportServiceUrl = (req.body.supportServiceUrl || '').trim();
+	const supportServiceApiKey = (req.body.supportServiceApiKey || '').trim();
 	await meta.settings.set(SETTINGS_HASH, {
 		apiUrl: apiUrl || '',
 		secretKey,
 		rejectBlocked,
+		supportEnabled,
+		supportServiceUrl,
+		supportServiceApiKey,
 	});
 	req.flash('success', 'License Gate settings saved.');
 	res.redirect(nconf.get('relative_path') + '/admin/plugins/license-gate');
+}
+
+async function addApiRoutes({ router, middleware, helpers }) {
+	const routeHelpers = require.main.require('./src/routes/helpers');
+	const middlewares = [middleware.ensureLoggedIn];
+
+	routeHelpers.setupApiRoute(router, 'get', '/license-gate/support-status', middlewares, async (req, res) => {
+		const settings = await getSettings();
+		assertSupportIntegration(settings);
+		await syncSupportAccount(req.uid, settings, { discover: true });
+		const status = await supportServiceRequest(`/v1/accounts/${req.uid}/support-status`, settings);
+		helpers.formatApiResponse(200, res, status);
+	});
+
+	routeHelpers.setupApiRoute(router, 'post', '/license-gate/license-claims', middlewares, async (req, res) => {
+		const settings = await getSettings();
+		assertSupportIntegration(settings);
+		const licenseKey = String(req.body?.licenseKey || '').trim();
+		if (licenseKey.length < 5 || licenseKey.length > 255) {
+			throw new Error('Please enter a valid license key.');
+		}
+
+		await syncSupportAccount(req.uid, settings);
+		const result = await supportServiceRequest('/v1/license-claims', settings, {
+			method: 'POST',
+			body: { nodebbUid: req.uid, licenseKey },
+		});
+		helpers.formatApiResponse(200, res, result);
+	});
 }
 
 function onAppLoad(data) {
@@ -88,9 +136,125 @@ async function getSettings() {
 		apiUrl: (nconf.get('license_gate_api_url') || '').trim() || '',
 		secretKey: (nconf.get('license_gate_secret_key') || '').trim(),
 		rejectBlocked: true,
+		supportEnabled: asBoolean(nconf.get('license_gate_support_enabled'), false),
+		supportServiceUrl: (nconf.get('license_gate_support_service_url') || '').trim(),
+		supportServiceApiKey: (nconf.get('license_gate_support_service_api_key') || '').trim(),
 	};
 	const settings = await meta.settings.get(SETTINGS_HASH);
-	return { ...defaults, ...(settings || {}) };
+	const merged = { ...defaults, ...(settings || {}) };
+	merged.rejectBlocked = asBoolean(merged.rejectBlocked, true);
+	merged.supportEnabled = asBoolean(merged.supportEnabled, false);
+	return merged;
+}
+
+function assertSupportIntegration(settings) {
+	if (!settings.supportEnabled || !settings.supportServiceUrl || !settings.supportServiceApiKey) {
+		const error = new Error('Support status is not configured yet.');
+		error.status = 503;
+		throw error;
+	}
+}
+
+async function supportServiceRequest(path, settings, options = {}) {
+	const url = new URL(path, settings.supportServiceUrl.endsWith('/') ? settings.supportServiceUrl : `${settings.supportServiceUrl}/`);
+	let response;
+	try {
+		response = await fetch(url, {
+			method: options.method || 'GET',
+			headers: {
+				accept: 'application/json',
+				authorization: `Bearer ${settings.supportServiceApiKey}`,
+				...(options.body ? { 'content-type': 'application/json' } : {}),
+			},
+			body: options.body ? JSON.stringify(options.body) : undefined,
+			signal: AbortSignal.timeout(10_000),
+		});
+	} catch (error) {
+		winston.warn(`[${PLUGIN_ID}] Support service request failed: ${error.message}`);
+		throw new Error('The support service is temporarily unavailable. Please try again later.');
+	}
+
+	let data;
+	try {
+		data = await response.json();
+	} catch (error) {
+		winston.warn(`[${PLUGIN_ID}] Support service returned invalid JSON for ${url.pathname}.`);
+		throw new Error('The support service returned an invalid response.');
+	}
+
+	if (!response.ok) {
+		const serviceError = new Error(data?.error?.message || 'The support service could not complete the request.');
+		serviceError.code = data?.error?.code;
+		serviceError.status = response.status;
+		throw serviceError;
+	}
+	return data;
+}
+
+async function getForumAccount(uid) {
+	const account = await user.getUserFields(uid, ['uid', 'email', 'username']);
+	if (!account?.email) {
+		throw new Error('Please add an email address to your forum account first.');
+	}
+	return {
+		nodebbUid: Number(account.uid),
+		email: String(account.email).trim().toLowerCase(),
+		username: account.username || '',
+	};
+}
+
+async function syncSupportAccount(uid, settings, { discover = false } = {}) {
+	const account = await getForumAccount(uid);
+	await supportServiceRequest('/v1/accounts/sync', settings, { method: 'POST', body: account });
+
+	if (!discover) {
+		return account;
+	}
+
+	const cacheKey = `${PLUGIN_ID}:discovery:${uid}`;
+	const cache = await db.getObject(cacheKey);
+	const lastDiscovery = Number(cache?.timestamp || 0);
+	const shouldDiscover = cache?.email !== account.email || Date.now() - lastDiscovery >= DISCOVERY_INTERVAL_MS;
+	if (!shouldDiscover) {
+		return account;
+	}
+
+	try {
+		await supportServiceRequest(`/v1/accounts/${uid}/discover-licenses`, settings, { method: 'POST' });
+		await db.setObject(cacheKey, { email: account.email, timestamp: Date.now() });
+		await db.pexpire(cacheKey, DISCOVERY_INTERVAL_MS);
+	} catch (error) {
+		winston.warn(`[${PLUGIN_ID}] Automatic license discovery failed for uid ${uid}: ${error.message}`);
+	}
+	return account;
+}
+
+async function onUserCreate({ user: createdUser, data }) {
+	const settings = await getSettings();
+	if (!settings.supportEnabled || !settings.supportServiceUrl || !settings.supportServiceApiKey) {
+		return;
+	}
+
+	try {
+		const account = {
+			nodebbUid: Number(createdUser.uid),
+			email: String(data.email || '').trim().toLowerCase(),
+			username: createdUser.username || data.username || '',
+		};
+		if (!account.email) {
+			return;
+		}
+		await supportServiceRequest('/v1/accounts/sync', settings, { method: 'POST', body: account });
+		const licenseKey = String(data.license_key || '').trim();
+		if (licenseKey) {
+			await supportServiceRequest('/v1/license-claims', settings, {
+				method: 'POST',
+				body: { nodebbUid: account.nodebbUid, licenseKey },
+			});
+		}
+	} catch (error) {
+		winston.warn(`[${PLUGIN_ID}] Could not initialize support status for new uid ${createdUser.uid}: ${error.message}`);
+	}
 }
 
 function httpGet(urlString) {
@@ -199,6 +363,9 @@ module.exports = {
 	checkLicenseKey,
 	addAdminNavigation,
 	onAppLoad,
+	addApiRoutes,
+	onUserCreate,
 	getSettings,
 	validateWithLicenseManager,
+	supportServiceRequest,
 };

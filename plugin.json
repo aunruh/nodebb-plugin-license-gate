@@ -1,13 +1,14 @@
 {
   "id": "nodebb-plugin-license-gate",
   "name": "License Gate",
-  "description": "Requires a valid license key (from your WordPress License Manager) to register on the forum.",
+  "description": "Validates Lay Theme licenses and connects NodeBB accounts to support entitlements.",
   "url": "https://github.com/yourname/nodebb-plugin-license-gate",
-  "library": "./library.js",
   "hooks": [
     { "hook": "filter:register.build", "method": "addLicenseField" },
     { "hook": "filter:register.check", "method": "checkLicenseKey" },
     { "hook": "static:app.load", "method": "onAppLoad" },
+    { "hook": "static:api.routes", "method": "addApiRoutes" },
+    { "hook": "action:user.create", "method": "onUserCreate" },
     { "hook": "filter:admin.header.build", "method": "addAdminNavigation" }
   ],
   "templates": "templates",
