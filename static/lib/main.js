@@ -57,6 +57,19 @@ $(function () {
 		return Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 86400000));
 	}
 
+	function applyLocalSupportPreview(status) {
+		var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+		var preview = new URLSearchParams(window.location.search).get('support-preview');
+		if (!isLocal || preview !== 'expired') {
+			return status;
+		}
+		return Object.assign({}, status, {
+			canPost: false,
+			daysRemaining: 0,
+			supportUntil: new Date(Date.now() - (30 * 86400000)).toISOString(),
+		});
+	}
+
 	function getLicenseTier(key) {
 		var product = String(key.productRef || '').toLowerCase();
 		if (product.indexOf('studio') !== -1 || key.maxAllowedDomains >= 10) {
@@ -188,6 +201,7 @@ $(function () {
 			require(['api'], function (api) {
 				api.get('/plugins/license-gate/support-status')
 					.then(function (status) {
+						status = applyLocalSupportPreview(status);
 						cachedStatus = status;
 						updateSupportButtons(status);
 						resolve(status);
