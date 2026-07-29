@@ -104,7 +104,7 @@ $(function () {
 		return '<div class="mt-4">' +
 			'<h5 class="fw-semibold">Thank you for using Lay Theme</h5>' +
 			'<p>Lay Theme has always included free updates and personal forum support. I still release updates—often every week—and I love that many people come back to rebuild their websites with Lay Theme years later.</p>' +
-			'<p>When I first offered free support, I honestly did not expect support questions to continue five, six, or even ten years after a purchase. I completely understand why a new website can bring new questions, but providing personal support indefinitely is no longer sustainable for a small independent project.</p>' +
+			'<p>When I first offered free support, I honestly did not expect support questions to continue five, six, or even 9 years after a purchase. I completely understand why a new website can bring new questions, but providing personal support indefinitely is no longer sustainable for a small independent project.</p>' +
 			'<p>To keep support personal and reliable, purchases or paid license upgrades from <strong>' + escapeHtml(formatLongDate(policy.effectiveAt)) + '</strong> include <strong>' + escapeHtml(formatDuration(policy.standardMonths)) + '</strong> of forum support. Earlier purchases and upgrades include <strong>' + escapeHtml(formatDuration(policy.legacyMonths)) + '</strong>. After that, a <strong>' + escapeHtml(formatPrice(policy.priceMinor, policy.currency)) + ' support pass</strong> provides another ' + escapeHtml(formatDuration(policy.paidMonths)) + '.</p>' +
 			'<p class="mb-0">Lay Theme updates remain free, and you can always continue reading the forum.</p>' +
 		'</div>';
