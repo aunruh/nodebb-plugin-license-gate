@@ -262,13 +262,18 @@ $(function () {
 			'<div class="alert alert-success"><strong>Your forum support is active.</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ' — ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
 			'<div class="alert alert-warning"><strong>Your included forum support ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>You can continue reading the forum and receiving free Lay Theme updates. A one-year support pass will be available here soon.</div>' + renderSupportPolicy(status);
 
+		var forumEmail = app.user && app.user.email ? String(app.user.email) : '';
+		var emailDescription = forumEmail ?
+			'Your forum account uses <strong>' + escapeHtml(forumEmail) + '</strong>. If the license is registered to this email address, we will connect it immediately. If it is registered to a different email address, we will send a confirmation link to the license owner. Once confirmed, the license will be connected and included when we calculate your support availability.' :
+			'If the license is registered to your forum account email, we will connect it immediately. If it is registered to a different email address, we will send a confirmation link to the license owner. Once confirmed, the license will be connected and included when we calculate your support availability.';
+
 		return summary +
 			'<h6 class="fw-semibold mt-4">Your licenses</h6>' +
 			'<p class="small text-body-secondary">We use your most recent license purchase or paid upgrade to calculate included support.</p>' +
 			renderKeys(status.keys, status) +
 			'<hr class="my-4">' +
 			'<h6 class="fw-semibold">Connect another license</h6>' +
-			'<p class="small text-body-secondary">If the license uses another email address, we will send a confirmation link to the license owner.</p>' +
+			'<p class="small text-body-secondary">' + emailDescription + '</p>' +
 			'<form data-support-claim-form>' +
 				'<label class="form-label" for="lay-support-license-key">License key</label>' +
 				'<div class="input-group">' +
