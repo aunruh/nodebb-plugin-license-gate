@@ -9,6 +9,7 @@ const meta = require.main.require('./src/meta');
 const db = require.main.require('./src/database');
 const user = require.main.require('./src/user');
 const winston = require.main.require('winston');
+const { buildAdminSupportSummary } = require('./lib/admin-support-summary');
 
 const PLUGIN_ID = 'nodebb-plugin-license-gate';
 const SETTINGS_HASH = 'nodebb-plugin-license-gate';
@@ -104,6 +105,23 @@ async function addApiRoutes({ router, middleware, helpers }) {
 			method: 'POST',
 		});
 		helpers.formatApiResponse(200, res, result);
+	});
+
+	routeHelpers.setupApiRoute(router, 'get', '/license-gate/admin/users/:uid/support-status', middlewares, async (req, res) => {
+		if (!await user.isAdministrator(req.uid)) {
+			return helpers.formatApiResponse(403, res, new Error('Only forum administrators can view another user\'s support status.'));
+		}
+
+		const targetUid = Number(req.params.uid);
+		if (!Number.isInteger(targetUid) || targetUid < 1) {
+			return helpers.formatApiResponse(400, res, new Error('Invalid user ID.'));
+		}
+
+		const settings = await getSettings();
+		assertSupportIntegration(settings);
+		const account = await syncSupportAccount(targetUid, settings, { discover: true });
+		const status = await supportServiceRequest(`/v1/accounts/${targetUid}/support-status`, settings);
+		return helpers.formatApiResponse(200, res, buildAdminSupportSummary(status, account));
 	});
 }
 

@@ -9,6 +9,12 @@
 	flex: 0 0 auto;
 }
 
+.license-gate-admin-author-support {
+	width: fit-content;
+	max-width: 100%;
+	background: var(--bs-tertiary-bg);
+}
+
 .license-gate-modal .modal-dialog {
 	max-width: 760px;
 }

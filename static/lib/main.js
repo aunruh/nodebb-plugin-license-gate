@@ -50,6 +50,30 @@ $(function () {
 		return days + ' day' + (days === 1 ? '' : 's');
 	}
 
+	function formatRelativeAge(value) {
+		if (!value) {
+			return '';
+		}
+		var days = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 86400000));
+		if (days === 0) {
+			return 'today';
+		}
+		if (days === 1) {
+			return '1 day ago';
+		}
+		if (days < 31) {
+			return days + ' days ago';
+		}
+		var months = Math.floor(days / 30.4375);
+		if (months < 12) {
+			return months + ' month' + (months === 1 ? '' : 's') + ' ago';
+		}
+		var years = Math.floor(months / 12);
+		var remainingMonths = months % 12;
+		return years + ' year' + (years === 1 ? '' : 's') +
+			(remainingMonths ? ', ' + remainingMonths + ' month' + (remainingMonths === 1 ? '' : 's') : '') + ' ago';
+	}
+
 	function daysSince(value) {
 		if (!value) {
 			return 0;
@@ -248,6 +272,77 @@ $(function () {
 			});
 		});
 		return statusPromise;
+	}
+
+	function renderAdminTopicAuthorSupport(summary) {
+		var panel = $('[component="license-gate/admin-author-support"]');
+		if (!panel.length) {
+			return;
+		}
+		var dot = panel.find('[data-admin-support-dot]');
+		var title = panel.find('[data-admin-support-title]');
+		var detail = panel.find('[data-admin-support-detail]');
+		var username = summary.username || 'This user';
+		dot.removeClass('bg-success bg-warning bg-secondary');
+
+		if (!summary.latestActivity) {
+			dot.addClass('bg-secondary');
+			title.text('No license or support pass is connected to ' + username + '.');
+			detail.text('Support availability cannot be calculated yet.');
+			return;
+		}
+
+		var activity = summary.latestActivity.label + ' ' + formatRelativeAge(summary.latestActivity.at) + ' · ' + formatDate(summary.latestActivity.at);
+		if (summary.canPost) {
+			dot.addClass('bg-success');
+			title.text(username + '’s forum support is active · ' + formatDayCount(summary.daysRemaining) + ' remaining');
+			detail.text('Available until ' + formatDate(summary.supportUntil) + '. Latest: ' + activity + '.');
+			return;
+		}
+
+		dot.addClass('bg-warning');
+		var ended = summary.supportUntil ? formatRelativeAge(summary.supportUntil) : '';
+		title.text(username + '’s forum support ' + (ended ? 'expired ' + ended : 'has expired'));
+		detail.text('Latest: ' + activity + '.');
+	}
+
+	function addAdminTopicAuthorSupport() {
+		$('[component="license-gate/admin-author-support"]').remove();
+		if (!app.user || !app.user.isAdmin || !ajaxify.data || !ajaxify.data.template || !ajaxify.data.template.topic) {
+			return;
+		}
+
+		var firstPost = ajaxify.data.posts && ajaxify.data.posts[0];
+		var targetUid = Number(ajaxify.data.uid || (firstPost && firstPost.uid));
+		if (!targetUid) {
+			return;
+		}
+
+		var topicInfo = $('[component="topic/title"]').closest('h1').siblings('.topic-info').first();
+		if (!topicInfo.length) {
+			return;
+		}
+
+		var username = firstPost && firstPost.user && (firstPost.user.displayname || firstPost.user.username);
+		var panel = $(
+			'<div component="license-gate/admin-author-support" class="license-gate-admin-author-support d-flex align-items-start gap-2 border rounded-2 px-3 py-2">' +
+				'<span class="license-gate-support-dot bg-secondary mt-1" data-admin-support-dot aria-hidden="true"></span>' +
+				'<span class="d-flex flex-column lh-sm min-w-0">' +
+					'<strong class="small text-break" data-admin-support-title>Checking ' + escapeHtml(username || 'topic author') + '’s support…</strong>' +
+					'<span class="small text-body-secondary text-break mt-1" data-admin-support-detail>Visible to forum administrators only.</span>' +
+				'</span>' +
+			'</div>'
+		);
+		topicInfo.after(panel);
+
+		require(['api'], function (api) {
+			api.get('/plugins/license-gate/admin/users/' + targetUid + '/support-status')
+				.then(renderAdminTopicAuthorSupport)
+				.catch(function (error) {
+					panel.find('[data-admin-support-title]').text('Support status is unavailable.');
+					panel.find('[data-admin-support-detail]').text(error.message || String(error));
+				});
+		});
 	}
 
 	function renderKey(key, status, featured) {
@@ -460,6 +555,7 @@ $(function () {
 
 	addSupportButtons();
 	addSupportSummary();
+	addAdminTopicAuthorSupport();
 	if (app.user && app.user.uid) {
 		loadStatus(false);
 	}
@@ -470,6 +566,7 @@ $(function () {
 		}
 		addSupportButtons();
 		addSupportSummary();
+		addAdminTopicAuthorSupport();
 		updateSupportButtons(cachedStatus);
 	});
 });
