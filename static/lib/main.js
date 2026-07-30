@@ -84,8 +84,21 @@ $(function () {
 	function applyLocalSupportPreview(status) {
 		var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 		var preview = new URLSearchParams(window.location.search).get('support-preview');
-		if (!isLocal || (preview !== 'expired' && preview !== 'pass')) {
+		if (!isLocal || (preview !== 'expired' && preview !== 'pass' && preview !== 'none')) {
 			return status;
+		}
+		if (preview === 'none') {
+			return Object.assign({}, status, {
+				canPost: false,
+				activeSource: null,
+				activeSourceId: null,
+				activePolicy: null,
+				daysRemaining: 0,
+				monthsRemaining: 0,
+				supportUntil: null,
+				keys: [],
+				supportPasses: [],
+			});
 		}
 		if (preview === 'pass') {
 			var purchasedAt = new Date(Date.now() - (14 * 86400000));
