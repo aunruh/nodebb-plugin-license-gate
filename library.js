@@ -14,12 +14,28 @@ const { buildAdminSupportSummary } = require('./lib/admin-support-summary');
 const PLUGIN_ID = 'nodebb-plugin-license-gate';
 const SETTINGS_HASH = 'nodebb-plugin-license-gate';
 const DISCOVERY_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const ADMIN_BATCH_MAX_USERS = 50;
+const ADMIN_BATCH_CONCURRENCY = 4;
 
 function asBoolean(value, fallback) {
 	if (value === undefined || value === null || value === '') {
 		return fallback;
 	}
 	return value === true || value === 'true' || value === 'on' || value === 1 || value === '1';
+}
+
+async function mapWithConcurrency(items, concurrency, callback) {
+	const results = new Array(items.length);
+	let nextIndex = 0;
+	const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+		while (nextIndex < items.length) {
+			const index = nextIndex;
+			nextIndex += 1;
+			results[index] = await callback(items[index]);
+		}
+	});
+	await Promise.all(workers);
+	return results;
 }
 
 /* ---------- Admin settings page ---------- */
@@ -122,6 +138,37 @@ async function addApiRoutes({ router, middleware, helpers }) {
 		const account = await syncSupportAccount(targetUid, settings, { discover: true });
 		const status = await supportServiceRequest(`/v1/accounts/${targetUid}/support-status`, settings);
 		return helpers.formatApiResponse(200, res, buildAdminSupportSummary(status, account));
+	});
+
+	routeHelpers.setupApiRoute(router, 'post', '/license-gate/admin/support-status-batch', middlewares, async (req, res) => {
+		if (!await user.isAdministrator(req.uid)) {
+			return helpers.formatApiResponse(403, res, new Error('Only forum administrators can view another user\'s support status.'));
+		}
+
+		const targetUids = [...new Set((Array.isArray(req.body?.uids) ? req.body.uids : [])
+			.map(Number)
+			.filter(uid => Number.isInteger(uid) && uid > 0))];
+		if (targetUids.length > ADMIN_BATCH_MAX_USERS) {
+			return helpers.formatApiResponse(400, res, new Error(`A maximum of ${ADMIN_BATCH_MAX_USERS} users can be checked at once.`));
+		}
+		if (!targetUids.length) {
+			return helpers.formatApiResponse(200, res, { users: {} });
+		}
+
+		const settings = await getSettings();
+		assertSupportIntegration(settings);
+		const summaries = await mapWithConcurrency(targetUids, ADMIN_BATCH_CONCURRENCY, async (targetUid) => {
+			try {
+				const account = await syncSupportAccount(targetUid, settings, { discover: true });
+				const status = await supportServiceRequest(`/v1/accounts/${targetUid}/support-status`, settings);
+				return [targetUid, buildAdminSupportSummary(status, account)];
+			} catch (error) {
+				winston.warn(`[${PLUGIN_ID}] Could not load admin support summary for uid ${targetUid}: ${error.message}`);
+				return [targetUid, { nodebbUid: targetUid, unavailable: true }];
+			}
+		});
+
+		return helpers.formatApiResponse(200, res, { users: Object.fromEntries(summaries) });
 	});
 }
 

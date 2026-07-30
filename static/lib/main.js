@@ -358,6 +358,66 @@ $(function () {
 		});
 	}
 
+	function renderRecentAuthorSupport(topic, summary) {
+		var topicItem = $('[component="category/topic"][data-tid="' + Number(topic.tid) + '"]');
+		if (!topicItem.length) {
+			return;
+		}
+		var header = topicItem.find('[component="topic/header"]');
+		if (!header.length || header.siblings('[component="license-gate/recent-author-support"]').length) {
+			return;
+		}
+
+		var dotClass = 'bg-secondary';
+		var label = 'Support status unavailable';
+		if (summary && !summary.unavailable) {
+			if (!summary.latestActivity) {
+				label = 'No license connected';
+			} else if (summary.canPost) {
+				dotClass = 'bg-success';
+				label = 'Support active · ' + formatDayCount(summary.daysRemaining) + ' left';
+			} else {
+				dotClass = 'bg-warning';
+				label = 'Support expired' + (summary.supportUntil ? ' ' + formatRelativeAge(summary.supportUntil) : '');
+			}
+		}
+
+		header.after(
+			'<div component="license-gate/recent-author-support" class="license-gate-recent-author-support d-flex align-items-center gap-2 w-100 mt-1" title="Visible to forum administrators only">' +
+				'<span class="license-gate-support-dot ' + dotClass + '" aria-hidden="true"></span>' +
+				'<span class="text-body-secondary">' + escapeHtml(label) + '</span>' +
+			'</div>'
+		);
+	}
+
+	function addAdminRecentSupportStatuses() {
+		$('[component="license-gate/recent-author-support"]').remove();
+		if (!app.user || !app.user.isAdmin || !ajaxify.data || !ajaxify.data.template || !ajaxify.data.template.recent) {
+			return;
+		}
+
+		var topics = (ajaxify.data.topics || []).filter(function (topic) {
+			return Number(topic.tid) > 0 && Number(topic.uid) > 0;
+		});
+		var uids = topics.map(function (topic) { return Number(topic.uid); }).filter(function (uid, index, values) {
+			return values.indexOf(uid) === index;
+		});
+		if (!uids.length) {
+			return;
+		}
+
+		require(['api'], function (api) {
+			api.post('/plugins/license-gate/admin/support-status-batch', { uids: uids })
+				.then(function (result) {
+					var users = result.users || {};
+					topics.forEach(function (topic) {
+						renderRecentAuthorSupport(topic, users[String(topic.uid)]);
+					});
+				})
+				.catch(function () {});
+		});
+	}
+
 	function renderKey(key, status, featured) {
 		var fullKey = String(key.key || '');
 		var hiddenKey = maskedKey(key);
@@ -569,6 +629,7 @@ $(function () {
 	addSupportButtons();
 	addSupportSummary();
 	addAdminTopicAuthorSupport();
+	addAdminRecentSupportStatuses();
 	if (app.user && app.user.uid) {
 		loadStatus(false);
 	}
@@ -580,6 +641,7 @@ $(function () {
 		addSupportButtons();
 		addSupportSummary();
 		addAdminTopicAuthorSupport();
+		addAdminRecentSupportStatuses();
 		updateSupportButtons(cachedStatus);
 	});
 });

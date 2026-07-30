@@ -52,7 +52,7 @@ When enabled, the plugin:
 4. Shows support passes separately from masked licenses, purchases, paid upgrades, and remaining support time.
 5. Lets a user connect another key. A different license-owner email triggers the service's confirmation-email flow.
 6. Starts the provider-independent support checkout when payments are enabled; otherwise it displays a coming-soon button.
-7. Shows administrators a compact support summary for the topic author directly below the topic metadata. The corresponding API is protected by a server-side administrator check and never returns license keys or email addresses.
+7. Shows administrators a compact support summary for the topic author directly below the topic metadata and beside every topic on the Recent page. The corresponding APIs are protected by a server-side administrator check and never return license keys or email addresses.
 
 Configure these values in **Extend > Plugins > License Gate**:
 
