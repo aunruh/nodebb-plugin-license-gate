@@ -317,11 +317,11 @@ async function syncSupportAccount(uid, settings, { discover = false } = {}) {
 async function enforceSupportForPosting(data) {
 	const uid = Number(data?.uid);
 	const settings = await getSettings();
-	const isAdmin = Number.isInteger(uid) && uid > 0 ? await user.isAdministrator(uid) : false;
+	const isAdminOrGlobalMod = Number.isInteger(uid) && uid > 0 ? await user.isAdminOrGlobalMod(uid) : false;
 	if (!shouldCheckSupport({
 		uid,
 		fromQueue: Boolean(data?.fromQueue),
-		isAdmin,
+		isAdminOrGlobalMod,
 		supportEnabled: settings.supportEnabled,
 		supportEnforcementEnabled: settings.supportEnforcementEnabled,
 	})) {

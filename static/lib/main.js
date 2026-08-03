@@ -263,7 +263,7 @@ $(function () {
 	}
 
 	function isPostingBlocked(status) {
-		return Boolean(status && !status.unavailable && status.postingEnforced && status.canPost === false && !(app.user && app.user.isAdmin));
+		return Boolean(status && !status.unavailable && status.postingEnforced && status.canPost === false && !(app.user && (app.user.isAdmin || app.user.isGlobalMod)));
 	}
 
 	function applyComposerSupportGate(postContainer, status) {
@@ -721,7 +721,7 @@ $(function () {
 	require(['hooks'], function (hooks) {
 		hooks.on('filter:composer.check', function (payload) {
 			var action = payload && payload.postData ? payload.postData.action : '';
-			if (!isSupportGatedComposerAction(action) || (app.user && app.user.isAdmin)) {
+			if (!isSupportGatedComposerAction(action) || (app.user && (app.user.isAdmin || app.user.isGlobalMod))) {
 				return payload;
 			}
 			return loadStatus(false).then(function (status) {

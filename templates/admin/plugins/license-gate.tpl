@@ -49,7 +49,7 @@
 					<div class="form-check form-switch mb-3">
 						<input type="checkbox" class="form-check-input" id="supportEnforcementEnabled" name="supportEnforcementEnabled" {{{ if supportEnforcementEnabled }}}checked{{{ end }}} />
 						<label for="supportEnforcementEnabled" class="form-check-label">Require active support for posting</label>
-						<p class="form-text">Blocks new topics and replies for regular users whose support has expired. Administrators remain exempt. If the support service is temporarily unavailable, posting remains available.</p>
+						<p class="form-text">Blocks new topics and replies for regular users whose support has expired. Administrators and global moderators remain exempt. If the support service is temporarily unavailable, posting remains available.</p>
 					</div>
 					<div class="mb-3">
 						<label class="form-label" for="supportServiceUrl">Service URL</label>
