@@ -9,6 +9,8 @@
     { "hook": "static:app.load", "method": "onAppLoad" },
     { "hook": "static:api.routes", "method": "addApiRoutes" },
     { "hook": "action:user.create", "method": "onUserCreate" },
+    { "hook": "filter:topic.post", "method": "enforceSupportForPosting", "priority": 5 },
+    { "hook": "filter:topic.reply", "method": "enforceSupportForPosting", "priority": 5 },
     { "hook": "filter:admin.header.build", "method": "addAdminNavigation" }
   ],
   "templates": "templates",

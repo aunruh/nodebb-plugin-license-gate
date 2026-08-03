@@ -10,6 +10,7 @@ const db = require.main.require('./src/database');
 const user = require.main.require('./src/user');
 const winston = require.main.require('winston');
 const { buildAdminSupportSummary } = require('./lib/admin-support-summary');
+const { shouldCheckSupport, getPostingError } = require('./lib/support-posting-policy');
 
 const PLUGIN_ID = 'nodebb-plugin-license-gate';
 const SETTINGS_HASH = 'nodebb-plugin-license-gate';
@@ -60,6 +61,7 @@ async function adminGetSettings(req, res) {
 		secretKey: settings.secretKey || '',
 		rejectBlocked: asBoolean(settings.rejectBlocked, true),
 		supportEnabled: asBoolean(settings.supportEnabled, false),
+		supportEnforcementEnabled: asBoolean(settings.supportEnforcementEnabled, false),
 		supportServiceUrl: settings.supportServiceUrl || '',
 		supportServiceApiKey: settings.supportServiceApiKey || '',
 		success: success && success.length ? success[0] : '',
@@ -71,6 +73,7 @@ async function adminPostSettings(req, res) {
 	const secretKey = (req.body.secretKey || '').trim();
 	const rejectBlocked = req.body.rejectBlocked === 'on';
 	const supportEnabled = req.body.supportEnabled === 'on';
+	const supportEnforcementEnabled = req.body.supportEnforcementEnabled === 'on';
 	const supportServiceUrl = (req.body.supportServiceUrl || '').trim();
 	const supportServiceApiKey = (req.body.supportServiceApiKey || '').trim();
 	await meta.settings.set(SETTINGS_HASH, {
@@ -78,6 +81,7 @@ async function adminPostSettings(req, res) {
 		secretKey,
 		rejectBlocked,
 		supportEnabled,
+		supportEnforcementEnabled,
 		supportServiceUrl,
 		supportServiceApiKey,
 	});
@@ -94,6 +98,7 @@ async function addApiRoutes({ router, middleware, helpers }) {
 		assertSupportIntegration(settings);
 		await syncSupportAccount(req.uid, settings, { discover: true });
 		const status = await supportServiceRequest(`/v1/accounts/${req.uid}/support-status`, settings);
+		status.postingEnforced = settings.supportEnforcementEnabled;
 		helpers.formatApiResponse(200, res, status);
 	});
 
@@ -212,6 +217,7 @@ async function getSettings() {
 		secretKey: (nconf.get('license_gate_secret_key') || '').trim(),
 		rejectBlocked: true,
 		supportEnabled: asBoolean(nconf.get('license_gate_support_enabled'), false),
+		supportEnforcementEnabled: asBoolean(nconf.get('license_gate_support_enforcement_enabled'), false),
 		supportServiceUrl: (nconf.get('license_gate_support_service_url') || '').trim(),
 		supportServiceApiKey: (nconf.get('license_gate_support_service_api_key') || '').trim(),
 	};
@@ -219,6 +225,7 @@ async function getSettings() {
 	const merged = { ...defaults, ...(settings || {}) };
 	merged.rejectBlocked = asBoolean(merged.rejectBlocked, true);
 	merged.supportEnabled = asBoolean(merged.supportEnabled, false);
+	merged.supportEnforcementEnabled = asBoolean(merged.supportEnforcementEnabled, false);
 	return merged;
 }
 
@@ -305,6 +312,39 @@ async function syncSupportAccount(uid, settings, { discover = false } = {}) {
 		winston.warn(`[${PLUGIN_ID}] Automatic license discovery failed for uid ${uid}: ${error.message}`);
 	}
 	return account;
+}
+
+async function enforceSupportForPosting(data) {
+	const uid = Number(data?.uid);
+	const settings = await getSettings();
+	const isAdmin = Number.isInteger(uid) && uid > 0 ? await user.isAdministrator(uid) : false;
+	if (!shouldCheckSupport({
+		uid,
+		fromQueue: Boolean(data?.fromQueue),
+		isAdmin,
+		supportEnabled: settings.supportEnabled,
+		supportEnforcementEnabled: settings.supportEnforcementEnabled,
+	})) {
+		return data;
+	}
+
+	let status;
+	try {
+		await syncSupportAccount(uid, settings, { discover: true });
+		status = await supportServiceRequest(`/v1/accounts/${uid}/support-status`, settings);
+	} catch (error) {
+		// Keep the forum usable if the entitlement service has a temporary outage.
+		winston.error(`[${PLUGIN_ID}] Support posting check failed open for uid ${uid}: ${error.message}`);
+		return data;
+	}
+
+	const postingError = getPostingError(status);
+	if (postingError) {
+		const error = new Error(postingError);
+		error.code = 'SUPPORT_REQUIRED';
+		throw error;
+	}
+	return data;
 }
 
 async function onUserCreate({ user: createdUser, data }) {
@@ -443,6 +483,7 @@ module.exports = {
 	onAppLoad,
 	addApiRoutes,
 	onUserCreate,
+	enforceSupportForPosting,
 	getSettings,
 	validateWithLicenseManager,
 	supportServiceRequest,

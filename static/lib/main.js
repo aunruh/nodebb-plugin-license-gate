@@ -258,6 +258,50 @@ $(function () {
 		}
 	}
 
+	function isSupportGatedComposerAction(action) {
+		return action === 'topics.post' || action === 'posts.reply';
+	}
+
+	function isPostingBlocked(status) {
+		return Boolean(status && !status.unavailable && status.postingEnforced && status.canPost === false && !(app.user && app.user.isAdmin));
+	}
+
+	function applyComposerSupportGate(postContainer, status) {
+		var action = postContainer.attr('data-license-gate-composer-action');
+		if (!isSupportGatedComposerAction(action)) {
+			return;
+		}
+
+		postContainer.find('[component="license-gate/composer-support-required"]').remove();
+		postContainer.find('.composer-submit[data-license-gate-disabled]')
+			.prop('disabled', false)
+			.removeAttr('data-license-gate-disabled');
+
+		if (!isPostingBlocked(status)) {
+			return;
+		}
+
+		var message = status.keys && status.keys.length ?
+			'Connect another eligible Lay Theme license or purchase a 12-month Support Pass to continue posting.' :
+			'Connect a valid Lay Theme license before purchasing a 12-month Support Pass.';
+		var notice = $(
+			'<div component="license-gate/composer-support-required" class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-1 py-2 px-3">' +
+				'<div><strong>Active forum support is required to post.</strong><br><span class="small">' + escapeHtml(message) + '</span></div>' +
+				'<button type="button" class="btn btn-sm btn-primary text-nowrap" data-open-support-from-composer>Support &amp; licenses</button>' +
+			'</div>'
+		);
+		postContainer.find('.write-preview-container').before(notice);
+		postContainer.find('.composer-submit')
+			.prop('disabled', true)
+			.attr('data-license-gate-disabled', 'true');
+	}
+
+	function refreshOpenComposerSupportGates(status) {
+		$('[component="composer"][data-license-gate-composer-action]').each(function () {
+			applyComposerSupportGate($(this), status);
+		});
+	}
+
 	function loadStatus(force) {
 		if (!force && cachedStatus) {
 			return Promise.resolve(cachedStatus);
@@ -272,11 +316,13 @@ $(function () {
 						status = applyLocalSupportPreview(status);
 						cachedStatus = status;
 						updateSupportButtons(status);
+						refreshOpenComposerSupportGates(status);
 						resolve(status);
 					})
 					.catch(function (error) {
 						cachedStatus = { unavailable: true, message: error.message || String(error) };
 						updateSupportButtons(cachedStatus);
+						refreshOpenComposerSupportGates(cachedStatus);
 						resolve(cachedStatus);
 					})
 					.finally(function () {
@@ -519,8 +565,8 @@ $(function () {
 		}
 		var activeTitle = status.activeSource === 'payment' ? 'Your support pass is active.' : 'Your forum support is active.';
 		var expiredMessage = status.checkoutAvailable ?
-			'Purchase a Support Pass to post product-related questions for another year. During this launch period, posting remains available while we verify the new payment flow.' :
-			'You can still post for now while support payments are being set up. Soon, you will be able to purchase another year of support here.';
+			'Purchase a Support Pass to post product-related questions for another year.' :
+			'Connect an eligible Lay Theme license below to restore posting access.';
 		var summary = status.canPost ?
 			'<div class="alert alert-success"><strong>' + activeTitle + '</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ' — ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
 			'<div class="alert alert-warning"><strong>Your included forum support ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>' + escapeHtml(expiredMessage) + ' If you have another Lay Theme license that is not connected yet, enter it below—your most recent eligible purchase or paid upgrade may extend your included support.<div class="mt-3">' + renderSupportCheckout(status) + '</div></div>' + renderSupportPolicy(status);
@@ -667,9 +713,36 @@ $(function () {
 		});
 	}
 
-	$(document).on('click', '[component="license-gate/support"] button, [component="license-gate/support-summary"] button', function (event) {
+	$(document).on('click', '[component="license-gate/support"] button, [component="license-gate/support-summary"] button, [data-open-support-from-composer]', function (event) {
 		event.preventDefault();
 		openSupportModal();
+	});
+
+	require(['hooks'], function (hooks) {
+		hooks.on('filter:composer.check', function (payload) {
+			var action = payload && payload.postData ? payload.postData.action : '';
+			if (!isSupportGatedComposerAction(action) || (app.user && app.user.isAdmin)) {
+				return payload;
+			}
+			return loadStatus(false).then(function (status) {
+				if (isPostingBlocked(status)) {
+					payload.error = 'Your forum support has expired. Open “Support & licenses” to connect another Lay Theme license or purchase a 12-month Support Pass before posting.';
+				}
+				return payload;
+			});
+		});
+	});
+
+	$(window).on('action:composer.loaded.licenseGate', function (event, data) {
+		var postContainer = data && data.postContainer ? data.postContainer : $();
+		var action = data && data.composerData ? data.composerData.action : '';
+		if (!postContainer.length || !isSupportGatedComposerAction(action)) {
+			return;
+		}
+		postContainer.attr('data-license-gate-composer-action', action);
+		loadStatus(false).then(function (status) {
+			applyComposerSupportGate(postContainer, status);
+		});
 	});
 
 	addSupportButtons();

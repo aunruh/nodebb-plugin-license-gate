@@ -40,9 +40,9 @@ The plugin uses the **slm_check** action:
 
 A valid key returns JSON with `result: "success"`. Blocked keys can be rejected by configuring the plugin to reject `status === 'blocked'` (default: enabled).
 
-## Support status integration
+## Support status and posting integration
 
-The optional support integration does not restrict posting yet. It displays account-bound support entitlements and exposes checkout only when the support service reports that a payment provider is available.
+The optional support integration displays account-bound support entitlements, exposes checkout when the support service reports that a payment provider is available, and can require active support for posting.
 
 When enabled, the plugin:
 
@@ -53,10 +53,12 @@ When enabled, the plugin:
 5. Lets a user connect another key. A different license-owner email triggers the service's confirmation-email flow.
 6. Starts the Dodo Payments Support Pass checkout when payments are enabled, returns to the forum after payment, and refreshes the modal until the signed webhook activates the pass.
 7. Shows administrators a compact support summary for the topic author directly below the topic metadata and beside every topic on the Recent page. The corresponding APIs are protected by a server-side administrator check and never return license keys or email addresses.
+8. When posting enforcement is enabled, blocks both new topics and replies for regular users whose support has expired. The check runs on the NodeBB server, administrators are exempt, editing and reading remain available, and a temporary support-service outage fails open.
 
 Configure these values in **Extend > Plugins > License Gate**:
 
 - **Enable support status integration**
+- **Require active support for posting** – server-side enforcement for new topics and replies
 - **Service URL** – `http://localhost:3002/` for local development or the Railway URL in production
 - **NodeBB API key** – must match `NODEBB_API_KEY` in the support service
 
@@ -68,6 +70,7 @@ The plugin calls:
 - `POST /v1/accounts/:uid/discover-licenses`
 - `GET /v1/accounts/:uid/support-status`
 - `POST /v1/license-claims`
+- `POST /v1/accounts/:uid/checkout`
 
 Registration continues to use the existing WordPress License Manager connection during this rollout.
 

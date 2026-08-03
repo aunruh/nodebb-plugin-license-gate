@@ -12,6 +12,7 @@
 				<form method="post" action="{config.relative_path}/admin/plugins/license-gate">
 					<input type="hidden" name="csrf_token" value="{config.csrf_token}" />
 					{{{ if supportEnabled }}}<input type="hidden" name="supportEnabled" value="on" />{{{ end }}}
+					{{{ if supportEnforcementEnabled }}}<input type="hidden" name="supportEnforcementEnabled" value="on" />{{{ end }}}
 					<input type="hidden" name="supportServiceUrl" value="{supportServiceUrl}" />
 					<input type="hidden" name="supportServiceApiKey" value="{supportServiceApiKey}" />
 					<div class="mb-3">
@@ -35,7 +36,7 @@
 
 			<div class="mb-4">
 				<h5 class="fw-bold tracking-tight settings-header">Support entitlement service</h5>
-				<p class="form-text text-body-secondary">Connect forum accounts to Lay Theme licenses and display their support status. This first rollout only displays status and does not restrict posting.</p>
+				<p class="form-text text-body-secondary">Connect forum accounts to Lay Theme licenses, display their support status, and optionally require active support before posting.</p>
 				<form method="post" action="{config.relative_path}/admin/plugins/license-gate">
 					<input type="hidden" name="csrf_token" value="{config.csrf_token}" />
 					<input type="hidden" name="apiUrl" value="{apiUrl}" />
@@ -44,6 +45,11 @@
 					<div class="form-check form-switch mb-3">
 						<input type="checkbox" class="form-check-input" id="supportEnabled" name="supportEnabled" {{{ if supportEnabled }}}checked{{{ end }}} />
 						<label for="supportEnabled" class="form-check-label">Enable support status integration</label>
+					</div>
+					<div class="form-check form-switch mb-3">
+						<input type="checkbox" class="form-check-input" id="supportEnforcementEnabled" name="supportEnforcementEnabled" {{{ if supportEnforcementEnabled }}}checked{{{ end }}} />
+						<label for="supportEnforcementEnabled" class="form-check-label">Require active support for posting</label>
+						<p class="form-text">Blocks new topics and replies for regular users whose support has expired. Administrators remain exempt. If the support service is temporarily unavailable, posting remains available.</p>
 					</div>
 					<div class="mb-3">
 						<label class="form-label" for="supportServiceUrl">Service URL</label>
