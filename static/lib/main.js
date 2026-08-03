@@ -11,7 +11,7 @@ $(function () {
 
 	function formatDate(value) {
 		if (!value) {
-			return '—';
+			return 'Not available';
 		}
 		return new Intl.DateTimeFormat('en-GB', {
 			year: 'numeric',
@@ -240,8 +240,8 @@ $(function () {
 		};
 		return '<div class="mt-4">' +
 			'<h5 class="fw-semibold">Thank you for using Lay Theme</h5>' +
-			'<p>Lay Theme has always included free updates and personal forum support. I still release updates—often every month—and I love that many people come back to rebuild their websites with Lay Theme years later.</p>' +
-			'<p>Over the years, I’ve seen customers return long after their original purchase—often to rebuild an entire website—and naturally need support again. I completely understand that, but providing personal support indefinitely is no longer sustainable for a small independent project.</p>' +
+			'<p>Lay Theme has always included free updates and personal forum support. I still release updates, often every month, and I love that many people come back to rebuild their websites with Lay Theme years later.</p>' +
+			'<p>Over the years, I’ve seen customers return long after their original purchase, often to rebuild an entire website, and naturally need support again. I completely understand that, but providing personal support indefinitely is no longer sustainable for a small independent project.</p>' +
 			'<p>To keep support personal and reliable, purchases or paid license upgrades from <strong>' + escapeHtml(formatLongDate(policy.effectiveAt)) + '</strong> include <strong>' + escapeHtml(formatDuration(policy.standardMonths)) + '</strong> of forum support. Earlier purchases and upgrades receive <strong>' + escapeHtml(formatDuration(policy.legacyMonths)) + '</strong> of included support under this new policy. After that, a <strong>' + escapeHtml(formatPrice(policy.priceMinor, policy.currency)) + ' support pass</strong> provides another ' + escapeHtml(formatDuration(policy.paidMonths)) + '.</p>' +
 			'<p class="mb-0">Lay Theme updates remain free, and you can always continue reading the forum.</p>' +
 		'</div>';
@@ -635,7 +635,7 @@ $(function () {
 				'<strong>' + escapeHtml(title) + '</strong>' + badge +
 			'</div>' +
 			'<div class="small text-body-secondary mt-2">' + purchaseLabel + escapeHtml(formatDate(pass.purchasedAt)) + escapeHtml(price) + '</div>' +
-			'<div class="small text-body-secondary">Valid ' + escapeHtml(formatDate(pass.startsAt)) + ' – ' + escapeHtml(formatDate(pass.endsAt)) + '</div>' +
+			'<div class="small text-body-secondary">Valid from ' + escapeHtml(formatDate(pass.startsAt)) + ' to ' + escapeHtml(formatDate(pass.endsAt)) + '</div>' +
 			(active ? '<div class="small mt-2"><i class="fa fa-check-circle text-success me-1" aria-hidden="true"></i>This support pass is currently providing your forum support.</div>' : '') +
 		'</div>';
 	}
@@ -653,14 +653,14 @@ $(function () {
 
 	function renderSupportCheckout(status) {
 		var policy = status.policy || {};
-		var label = 'Purchase ' + formatDuration(policy.paidMonths || 12) + ' of support — ' + formatPrice(policy.priceMinor || 2000, policy.currency || 'EUR');
+		var label = 'Purchase ' + formatDuration(policy.paidMonths || 12) + ' of support for ' + formatPrice(policy.priceMinor || 2000, policy.currency || 'EUR');
 		if (!status.keys || !status.keys.length) {
 			return '<p class="small mb-0">Connect a valid Lay Theme license below before purchasing a Support Pass.</p>';
 		}
 		if (status.checkoutAvailable) {
 			return '<button type="button" class="btn btn-primary" data-support-checkout>' + escapeHtml(label) + '</button>';
 		}
-		return '<button type="button" class="btn btn-primary" disabled>Purchase 1 year of support — coming soon</button>';
+		return '<button type="button" class="btn btn-primary" disabled>Purchase 1 year of support, coming soon</button>';
 	}
 
 	function renderStatus(status) {
@@ -714,7 +714,7 @@ $(function () {
 				claimForm +
 			'</div>';
 		var summary = status.canPost ?
-			'<div class="alert alert-success"><strong>' + activeTitle + '</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ' — ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
+			'<div class="alert alert-success"><strong>' + activeTitle + '</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ', with ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
 			'<div class="alert alert-warning"><strong>Your included support period ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>' + escapeHtml(expiredMessage) + '<div class="mt-3">' + renderSupportCheckout(status) + '</div>' + renderSupportContactHelp() + '</div>' + expiredLicenseOption + renderSupportPolicy(status);
 
 		var licenseDescription = status.canPost && status.activeSource === 'payment' ?
