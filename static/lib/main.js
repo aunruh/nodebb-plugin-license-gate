@@ -613,9 +613,20 @@ $(function () {
 		var expiredMessage = status.checkoutAvailable ?
 			'Purchase a Support Pass to post product-related questions for another year.' :
 			'Connect an eligible Lay Theme license below to restore posting access.';
+		var expiredLicenseOption =
+			'<div class="d-flex align-items-center gap-3 my-4" aria-hidden="true">' +
+				'<hr class="flex-grow-1 my-0">' +
+				'<span class="small fw-semibold text-body-secondary">OR</span>' +
+				'<hr class="flex-grow-1 my-0">' +
+			'</div>' +
+			'<div class="mb-4">' +
+				'<h5 class="fw-semibold">Connect another license</h5>' +
+				'<p class="text-body-secondary">If you have another Lay Theme license, enter its key here. A more recent purchase or paid upgrade may restore your included forum support.</p>' +
+				claimForm +
+			'</div>';
 		var summary = status.canPost ?
 			'<div class="alert alert-success"><strong>' + activeTitle + '</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ' — ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
-			'<div class="alert alert-warning"><strong>Your included support period ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>' + escapeHtml(expiredMessage) + ' If you have another Lay Theme license that is not connected yet, enter it below—your most recent eligible purchase or paid upgrade may extend your included support.<div class="mt-3">' + renderSupportCheckout(status) + '</div>' + renderSupportContactHelp() + '</div>' + renderSupportPolicy(status);
+			'<div class="alert alert-warning"><strong>Your included support period ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>' + escapeHtml(expiredMessage) + '<div class="mt-3">' + renderSupportCheckout(status) + '</div>' + renderSupportContactHelp() + '</div>' + expiredLicenseOption + renderSupportPolicy(status);
 
 		var licenseDescription = status.canPost && status.activeSource === 'payment' ?
 			'Your current support is provided by the pass above. Your connected licenses remain available here for reference.' :
@@ -623,9 +634,8 @@ $(function () {
 		var licenseTools =
 			'<p class="small text-body-secondary">' + licenseDescription + '</p>' +
 			renderKeys(status.keys, status) +
-			'<hr class="my-4">' +
-			'<h6 class="fw-semibold">Connect another license</h6>' +
-			claimForm;
+			(status.canPost ?
+				'<hr class="my-4"><h6 class="fw-semibold">Connect another license</h6>' + claimForm : '');
 		var licenseSection = status.canPost && status.activeSource === 'payment' ?
 			'<details class="license-gate-manage-licenses border rounded-2 mt-4"><summary class="fw-semibold p-3">Manage connected licenses</summary><div class="border-top p-3">' + licenseTools + '</div></details>' :
 			'<h6 class="fw-semibold mt-4">Your licenses</h6>' + licenseTools;
