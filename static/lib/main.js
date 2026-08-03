@@ -475,8 +475,9 @@ $(function () {
 		var title = pass.source === 'admin' ? 'Forum Support Access' : passDuration + ' Forum Support Pass';
 		var purchaseLabel = pass.source === 'admin' ? 'Granted ' : 'Purchased ';
 		var price = pass.amountMinor != null ? ' · ' + formatPrice(pass.amountMinor, pass.currency) : '';
+		var revokedLabel = pass.revocationReason === 'refund' ? 'Refunded' : 'Suspended';
 		var badge = pass.revokedAt ?
-			'<span class="badge text-bg-secondary">Refunded</span>' :
+			'<span class="badge text-bg-secondary">' + escapeHtml(revokedLabel) + '</span>' :
 			(active ? '<span class="badge text-bg-primary">Currently providing forum support</span>' : '');
 		return '<div class="list-group-item ' + (active ? 'license-gate-featured-support-pass' : '') + '">' +
 			'<div class="d-flex align-items-center gap-2 flex-wrap">' +
@@ -503,6 +504,9 @@ $(function () {
 	function renderSupportCheckout(status) {
 		var policy = status.policy || {};
 		var label = 'Purchase ' + formatDuration(policy.paidMonths || 12) + ' of support — ' + formatPrice(policy.priceMinor || 2000, policy.currency || 'EUR');
+		if (!status.keys || !status.keys.length) {
+			return '<p class="small mb-0">Connect a valid Lay Theme license below before purchasing a Support Pass.</p>';
+		}
 		if (status.checkoutAvailable) {
 			return '<button type="button" class="btn btn-primary" data-support-checkout>' + escapeHtml(label) + '</button>';
 		}
@@ -514,9 +518,12 @@ $(function () {
 			return '<div class="alert alert-secondary mb-3"><strong>Support status is unavailable.</strong><br><span class="small">' + escapeHtml(status.message || 'Please try again later.') + '</span></div>';
 		}
 		var activeTitle = status.activeSource === 'payment' ? 'Your support pass is active.' : 'Your forum support is active.';
+		var expiredMessage = status.checkoutAvailable ?
+			'Purchase a Support Pass to post product-related questions for another year. During this launch period, posting remains available while we verify the new payment flow.' :
+			'You can still post for now while support payments are being set up. Soon, you will be able to purchase another year of support here.';
 		var summary = status.canPost ?
 			'<div class="alert alert-success"><strong>' + activeTitle + '</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ' — ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
-			'<div class="alert alert-warning"><strong>Your included forum support ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>You can still post for now while support payments are being set up. Soon, you will be able to purchase another year of support here. If you have another Lay Theme license that is not connected yet, enter it below—your most recent eligible purchase or paid upgrade may extend your included support.<div class="mt-3">' + renderSupportCheckout(status) + '</div></div>' + renderSupportPolicy(status);
+			'<div class="alert alert-warning"><strong>Your included forum support ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>' + escapeHtml(expiredMessage) + ' If you have another Lay Theme license that is not connected yet, enter it below—your most recent eligible purchase or paid upgrade may extend your included support.<div class="mt-3">' + renderSupportCheckout(status) + '</div></div>' + renderSupportPolicy(status);
 
 		var forumEmail = app.user && app.user.email ? String(app.user.email) : '';
 		var emailDescription = forumEmail ?
@@ -621,6 +628,45 @@ $(function () {
 		});
 	}
 
+	function clearCheckoutQuery() {
+		var url = new window.URL(window.location.href);
+		url.searchParams.delete('support-checkout');
+		window.history.replaceState({}, '', url.pathname + (url.search ? url.search : '') + url.hash);
+	}
+
+	function handleCheckoutReturn() {
+		var checkoutResult = utils.param('support-checkout');
+		if (checkoutResult !== 'complete' && checkoutResult !== 'cancelled') {
+			return;
+		}
+		clearCheckoutQuery();
+		require(['alerts'], function (alerts) {
+			if (checkoutResult === 'cancelled') {
+				alerts.info('Checkout was cancelled. No payment was taken.');
+				return;
+			}
+			alerts.success('Payment received. Your Support Pass will appear as soon as Dodo confirms the payment.');
+			openSupportModal();
+			var attemptsRemaining = 8;
+			var refresh = function () {
+				var modal = $('.license-gate-modal').last();
+				if (!modal.length || attemptsRemaining <= 0) {
+					return;
+				}
+				attemptsRemaining -= 1;
+				cachedStatus = null;
+				loadStatus(true).then(function (status) {
+					modal.find('.bootbox-body').html(renderStatus(status));
+					bindClaimForm(modal);
+					if (status.activeSource !== 'payment') {
+						window.setTimeout(refresh, 2000);
+					}
+				});
+			};
+			window.setTimeout(refresh, 2000);
+		});
+	}
+
 	$(document).on('click', '[component="license-gate/support"] button, [component="license-gate/support-summary"] button', function (event) {
 		event.preventDefault();
 		openSupportModal();
@@ -633,6 +679,7 @@ $(function () {
 	if (app.user && app.user.uid) {
 		loadStatus(false);
 	}
+	handleCheckoutReturn();
 
 	$(window).on('action:ajaxify.end', function (e, data) {
 		if (data.url === 'register' && utils.param('error')) {

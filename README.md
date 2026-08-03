@@ -51,7 +51,7 @@ When enabled, the plugin:
 3. Adds a **Support** item to the Harmony desktop and mobile navigation.
 4. Shows support passes separately from masked licenses, purchases, paid upgrades, and remaining support time.
 5. Lets a user connect another key. A different license-owner email triggers the service's confirmation-email flow.
-6. Starts the provider-independent support checkout when payments are enabled; otherwise it displays a coming-soon button.
+6. Starts the Dodo Payments Support Pass checkout when payments are enabled, returns to the forum after payment, and refreshes the modal until the signed webhook activates the pass.
 7. Shows administrators a compact support summary for the topic author directly below the topic metadata and beside every topic on the Recent page. The corresponding APIs are protected by a server-side administrator check and never return license keys or email addresses.
 
 Configure these values in **Extend > Plugins > License Gate**:
