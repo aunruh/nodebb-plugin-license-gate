@@ -186,6 +186,10 @@ $(function () {
 		'</div>';
 	}
 
+	function renderSupportContactHelp(className) {
+		return '<p class="' + escapeHtml(className || 'small mt-3 mb-0') + '">If this support status looks incorrect, or you recently purchased a license and are having trouble connecting it, email me at <a href="mailto:info@laytheme.com">info@laytheme.com</a> and I’ll help you sort it out.</p>';
+	}
+
 	function addSupportButtons() {
 		if (!app.user || !app.user.uid) {
 			return;
@@ -603,7 +607,7 @@ $(function () {
 			return '<div class="mb-4">' +
 				'<h5 class="fw-semibold">Please enter your license key</h5>' +
 				'<p class="text-body-secondary mb-0">Connect your Lay Theme license to check your included forum support and posting access.</p>' +
-			'</div>' + claimForm;
+			'</div>' + claimForm + renderSupportContactHelp('small text-body-secondary mt-3 mb-0');
 		}
 		var activeTitle = status.activeSource === 'payment' ? 'Your support pass is active.' : 'Your forum support is active.';
 		var expiredMessage = status.checkoutAvailable ?
@@ -611,7 +615,7 @@ $(function () {
 			'Connect an eligible Lay Theme license below to restore posting access.';
 		var summary = status.canPost ?
 			'<div class="alert alert-success"><strong>' + activeTitle + '</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ' — ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
-			'<div class="alert alert-warning"><strong>Your included support period ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>' + escapeHtml(expiredMessage) + ' If you have another Lay Theme license that is not connected yet, enter it below—your most recent eligible purchase or paid upgrade may extend your included support.<div class="mt-3">' + renderSupportCheckout(status) + '</div></div>' + renderSupportPolicy(status);
+			'<div class="alert alert-warning"><strong>Your included support period ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>' + escapeHtml(expiredMessage) + ' If you have another Lay Theme license that is not connected yet, enter it below—your most recent eligible purchase or paid upgrade may extend your included support.<div class="mt-3">' + renderSupportCheckout(status) + '</div>' + renderSupportContactHelp() + '</div>' + renderSupportPolicy(status);
 
 		var licenseDescription = status.canPost && status.activeSource === 'payment' ?
 			'Your current support is provided by the pass above. Your connected licenses remain available here for reference.' :
