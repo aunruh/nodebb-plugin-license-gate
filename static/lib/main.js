@@ -1,5 +1,5 @@
 'use strict';
-/* global utils, app, config, ajaxify */
+/* global utils, app, config, ajaxify, socket */
 
 $(function () {
 	var cachedStatus = null;
@@ -87,6 +87,67 @@ $(function () {
 			(!status.keys || !status.keys.length) &&
 			(!status.supportPasses || !status.supportPasses.length) &&
 			!status.supportUntil);
+	}
+
+	function requiresEmailConfirmation() {
+		return Boolean(app.user && app.user.uid && !app.user['email:confirmed']);
+	}
+
+	function getEmailConfirmationStatus() {
+		return { emailConfirmationRequired: true };
+	}
+
+	function renderEmailConfirmationNotice() {
+		var changeEmailUrl = (config.relative_path || '') + '/me/edit/email';
+		return '<div component="license-gate/email-confirmation" class="container-lg px-md-4 mt-3">' +
+			'<div class="alert alert-warning mb-0 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3" role="status">' +
+				'<div>' +
+					'<h5 class="alert-heading fw-semibold mb-1">Confirm your email to finish setting up your account</h5>' +
+					'<p class="mb-1">Please click the confirmation link we sent you. Once confirmed, we can connect your Lay Theme license and calculate your forum support access. You can already read all forum topics.</p>' +
+					'<p class="small mb-0"><i class="fa fa-envelope me-1" aria-hidden="true"></i>Please also check your spam folder.</p>' +
+				'</div>' +
+				'<div class="d-flex flex-wrap gap-2 flex-shrink-0">' +
+					'<button type="button" class="btn btn-primary text-nowrap" data-resend-confirmation-email>Resend confirmation email</button>' +
+					'<a class="btn btn-outline-secondary text-nowrap" href="' + escapeHtml(changeEmailUrl) + '">Change email address</a>' +
+				'</div>' +
+			'</div>' +
+		'</div>';
+	}
+
+	function syncEmailConfirmationUi() {
+		var required = requiresEmailConfirmation();
+		$('body').toggleClass('license-gate-email-confirmation-required', required);
+
+		if (!required) {
+			$('[component="license-gate/email-confirmation"]').remove();
+			return;
+		}
+
+		if (!$('[component="license-gate/email-confirmation"]').length) {
+			var brand = $('.brand-container').first();
+			if (brand.length) {
+				brand.after(renderEmailConfirmationNotice());
+			}
+		}
+
+		require(['alerts'], function (alerts) {
+			alerts.remove('email_confirm');
+		});
+	}
+
+	function resendConfirmationEmail(button) {
+		var originalLabel = button.text();
+		button.prop('disabled', true).text('Sending…');
+		socket.emit('user.emailConfirm', {}, function (error) {
+			button.prop('disabled', false).text(originalLabel);
+			require(['alerts'], function (alerts) {
+				if (error) {
+					alerts.error(error);
+					return;
+				}
+				alerts.success('Confirmation email sent. Please check your inbox and spam folder.');
+			});
+		});
 	}
 
 	function applyLocalSupportPreview(status) {
@@ -227,7 +288,7 @@ $(function () {
 					'<strong class="small" data-support-summary-title>Checking forum support…</strong>' +
 					'<span class="text-body-secondary" data-support-summary-date></span>' +
 				'</span>' +
-				'<button type="button" class="btn btn-sm btn-outline-secondary text-nowrap">Support &amp; licenses</button>' +
+				'<button type="button" class="btn btn-sm btn-outline-secondary text-nowrap" data-support-summary-action="support">Support &amp; licenses</button>' +
 			'</div>'
 		);
 		updateSupportButtons(cachedStatus);
@@ -236,14 +297,25 @@ $(function () {
 	function updateSupportButtons(status) {
 		var items = $('[component="license-gate/support"]');
 		var summary = $('[component="license-gate/support-summary"]');
+		var summaryAction = summary.find('[data-support-summary-action]');
 		items.find('[data-support-icon]').removeClass('text-success text-warning text-secondary');
 		summary.find('[data-support-dot]').removeClass('bg-success bg-warning bg-secondary');
+		summaryAction.attr('data-support-summary-action', 'support').text('Support & licenses');
 		if (!status) {
 			items.find('[data-support-label]').text('Support');
 			items.find('[data-support-icon]').addClass('text-secondary');
 			summary.find('[data-support-dot]').addClass('bg-secondary');
 			summary.find('[data-support-summary-title]').text('Checking forum support…');
 			summary.find('[data-support-summary-date]').text('');
+			return;
+		}
+		if (status.emailConfirmationRequired) {
+			items.find('[data-support-label]').text('Confirm email');
+			items.find('[data-support-icon]').addClass('text-warning');
+			summary.find('[data-support-dot]').addClass('bg-warning');
+			summary.find('[data-support-summary-title]').text('Please confirm your email');
+			summary.find('[data-support-summary-date]').text('Check your inbox to activate forum posting');
+			summaryAction.attr('data-support-summary-action', 'resend-email').text('Resend confirmation email');
 			return;
 		}
 		if (status.unavailable) {
@@ -329,6 +401,12 @@ $(function () {
 	}
 
 	function loadStatus(force) {
+		if (requiresEmailConfirmation()) {
+			cachedStatus = getEmailConfirmationStatus();
+			updateSupportButtons(cachedStatus);
+			refreshOpenComposerSupportGates(cachedStatus);
+			return Promise.resolve(cachedStatus);
+		}
 		if (!force && cachedStatus) {
 			return Promise.resolve(cachedStatus);
 		}
@@ -586,6 +664,17 @@ $(function () {
 	}
 
 	function renderStatus(status) {
+		if (status.emailConfirmationRequired) {
+			return '<div class="alert alert-warning mb-0">' +
+				'<h5 class="alert-heading fw-semibold">Confirm your email to finish setting up your account</h5>' +
+				'<p>Please click the confirmation link we sent you. Once confirmed, we can connect your Lay Theme license and calculate your forum support access. You can already read all forum topics.</p>' +
+				'<p class="small"><i class="fa fa-envelope me-1" aria-hidden="true"></i>Please also check your spam folder.</p>' +
+				'<div class="d-flex flex-wrap gap-2">' +
+					'<button type="button" class="btn btn-primary" data-resend-confirmation-email>Resend confirmation email</button>' +
+					'<a class="btn btn-outline-secondary" href="' + escapeHtml((config.relative_path || '') + '/me/edit/email') + '">Change email address</a>' +
+				'</div>' +
+			'</div>';
+		}
 		if (status.unavailable) {
 			return '<div class="alert alert-secondary mb-3"><strong>Support status is unavailable.</strong><br><span class="small">' + escapeHtml(status.message || 'Please try again later.') + '</span></div>';
 		}
@@ -758,7 +847,12 @@ $(function () {
 		});
 	}
 
-	$(document).on('click', '[component="license-gate/support"] button, [component="license-gate/support-summary"] button, [data-open-support-from-composer]', function (event) {
+	$(document).on('click', '[data-resend-confirmation-email], [data-support-summary-action="resend-email"]', function (event) {
+		event.preventDefault();
+		resendConfirmationEmail($(this));
+	});
+
+	$(document).on('click', '[component="license-gate/support"] button, [data-support-summary-action="support"], [data-open-support-from-composer]', function (event) {
 		event.preventDefault();
 		openSupportModal();
 	});
@@ -792,6 +886,7 @@ $(function () {
 		});
 	});
 
+	syncEmailConfirmationUi();
 	addSupportButtons();
 	addSupportSummary();
 	addAdminTopicAuthorSupport();
@@ -805,10 +900,12 @@ $(function () {
 		if (data.url === 'register' && utils.param('error')) {
 			app.alertError('Registration failed. Please check your license key and try again.');
 		}
+		syncEmailConfirmationUi();
 		addSupportButtons();
 		addSupportSummary();
 		addAdminTopicAuthorSupport();
 		addAdminRecentSupportStatuses();
 		updateSupportButtons(cachedStatus);
+		window.setTimeout(syncEmailConfirmationUi, 0);
 	});
 });

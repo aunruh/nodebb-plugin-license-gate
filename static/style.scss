@@ -2,6 +2,14 @@
 	font-size: 0.75rem;
 }
 
+.license-gate-email-confirmation-required #alert_button_email_confirm {
+	display: none !important;
+}
+
+[component="license-gate/email-confirmation"] .alert {
+	border-color: var(--bs-warning-border-subtle);
+}
+
 .license-gate-support-dot {
 	width: 0.625rem;
 	height: 0.625rem;
