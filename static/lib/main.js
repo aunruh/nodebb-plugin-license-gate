@@ -513,6 +513,7 @@ $(function () {
 		if (!topicItem.length) {
 			return;
 		}
+		topicItem.removeAttr('data-license-gate-support-loading');
 		var header = topicItem.find('[component="topic/header"]');
 		if (!header.length || header.siblings('[component="license-gate/recent-author-support"]').length) {
 			return;
@@ -540,14 +541,24 @@ $(function () {
 		);
 	}
 
-	function addAdminRecentSupportStatuses() {
-		$('[component="license-gate/recent-author-support"]').remove();
+	function addAdminRecentSupportStatuses(loadedTopics, reset) {
+		if (reset) {
+			$('[component="license-gate/recent-author-support"]').remove();
+			$('[component="category/topic"]').removeAttr('data-license-gate-support-loading');
+		}
 		if (!app.user || !app.user.isAdmin || !ajaxify.data || !ajaxify.data.template || !ajaxify.data.template.recent) {
 			return;
 		}
 
-		var topics = (ajaxify.data.topics || []).filter(function (topic) {
-			return Number(topic.tid) > 0 && Number(topic.uid) > 0;
+		var topics = (loadedTopics || ajaxify.data.topics || []).filter(function (topic) {
+			var topicItem = $('[component="category/topic"][data-tid="' + Number(topic.tid) + '"]');
+			return Number(topic.tid) > 0 && Number(topic.uid) > 0 && topicItem.length &&
+				!topicItem.attr('data-license-gate-support-loading') &&
+				!topicItem.find('[component="license-gate/recent-author-support"]').length;
+		});
+		topics.forEach(function (topic) {
+			$('[component="category/topic"][data-tid="' + Number(topic.tid) + '"]')
+				.attr('data-license-gate-support-loading', '1');
 		});
 		var uids = topics.map(function (topic) { return Number(topic.uid); }).filter(function (uid, index, values) {
 			return values.indexOf(uid) === index;
@@ -564,7 +575,12 @@ $(function () {
 						renderRecentAuthorSupport(topic, users[String(topic.uid)]);
 					});
 				})
-				.catch(function () {});
+				.catch(function () {
+					topics.forEach(function (topic) {
+						$('[component="category/topic"][data-tid="' + Number(topic.tid) + '"]')
+							.removeAttr('data-license-gate-support-loading');
+					});
+				});
 		});
 	}
 
@@ -860,6 +876,10 @@ $(function () {
 	});
 
 	require(['hooks'], function (hooks) {
+		hooks.on('action:topics.loaded', function (payload) {
+			addAdminRecentSupportStatuses(payload && payload.topics, false);
+		});
+
 		hooks.on('filter:composer.check', function (payload) {
 			var action = payload && payload.postData ? payload.postData.action : '';
 			if (!isSupportGatedComposerAction(action) || (app.user && (app.user.isAdmin || app.user.isGlobalMod))) {
@@ -892,7 +912,7 @@ $(function () {
 	addSupportButtons();
 	addSupportSummary();
 	addAdminTopicAuthorSupport();
-	addAdminRecentSupportStatuses();
+	addAdminRecentSupportStatuses(null, true);
 	if (app.user && app.user.uid) {
 		loadStatus(false);
 	}
@@ -906,7 +926,7 @@ $(function () {
 		addSupportButtons();
 		addSupportSummary();
 		addAdminTopicAuthorSupport();
-		addAdminRecentSupportStatuses();
+		addAdminRecentSupportStatuses(null, true);
 		updateSupportButtons(cachedStatus);
 		window.setTimeout(syncEmailConfirmationUi, 0);
 	});
