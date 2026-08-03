@@ -269,8 +269,8 @@ $(function () {
 			items.find('[data-support-label]').text('Support expired');
 			items.find('[data-support-icon]').addClass('text-warning');
 			summary.find('[data-support-dot]').addClass('bg-warning');
-			summary.find('[data-support-summary-title]').text(elapsed ? 'Forum support ended ' + formatDayCount(elapsed) + ' ago' : 'Forum support ended today');
-			summary.find('[data-support-summary-date]').text(status.supportUntil ? 'Ended on ' + formatDate(status.supportUntil) : 'Connect a license to check your support');
+			summary.find('[data-support-summary-title]').text(elapsed ? 'Your included support ended ' + formatDayCount(elapsed) + ' ago' : 'Your included support ended today');
+			summary.find('[data-support-summary-date]').text('Renew support to post again');
 		}
 	}
 
@@ -297,12 +297,18 @@ $(function () {
 			return;
 		}
 
-		var message = status.keys && status.keys.length ?
+		var awaitingFirstLicense = isAwaitingFirstLicense(status);
+		var title = awaitingFirstLicense ?
+			'Connect your Lay Theme license to post.' :
+			'Your included support period has ended.';
+		var message = awaitingFirstLicense ?
+			'Enter your license key to check your included support and posting access.' :
+			(status.keys && status.keys.length ?
 			'Connect another eligible Lay Theme license or purchase a 12-month Support Pass to continue posting.' :
-			'Connect a valid Lay Theme license before purchasing a 12-month Support Pass.';
+			'Connect a valid Lay Theme license before purchasing a 12-month Support Pass.');
 		var notice = $(
 			'<div component="license-gate/composer-support-required" class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-1 py-2 px-3">' +
-				'<div><strong>Active forum support is required to post.</strong><br><span class="small">' + escapeHtml(message) + '</span></div>' +
+				'<div><strong>' + escapeHtml(title) + '</strong><br><span class="small">' + escapeHtml(message) + '</span></div>' +
 				'<button type="button" class="btn btn-sm btn-primary text-nowrap" data-open-support-from-composer>Support &amp; licenses</button>' +
 			'</div>'
 		);
@@ -605,7 +611,7 @@ $(function () {
 			'Connect an eligible Lay Theme license below to restore posting access.';
 		var summary = status.canPost ?
 			'<div class="alert alert-success"><strong>' + activeTitle + '</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ' — ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
-			'<div class="alert alert-warning"><strong>Your included forum support ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>' + escapeHtml(expiredMessage) + ' If you have another Lay Theme license that is not connected yet, enter it below—your most recent eligible purchase or paid upgrade may extend your included support.<div class="mt-3">' + renderSupportCheckout(status) + '</div></div>' + renderSupportPolicy(status);
+			'<div class="alert alert-warning"><strong>Your included support period ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>' + escapeHtml(expiredMessage) + ' If you have another Lay Theme license that is not connected yet, enter it below—your most recent eligible purchase or paid upgrade may extend your included support.<div class="mt-3">' + renderSupportCheckout(status) + '</div></div>' + renderSupportPolicy(status);
 
 		var licenseDescription = status.canPost && status.activeSource === 'payment' ?
 			'Your current support is provided by the pass above. Your connected licenses remain available here for reference.' :
@@ -751,7 +757,9 @@ $(function () {
 			}
 			return loadStatus(false).then(function (status) {
 				if (isPostingBlocked(status)) {
-					payload.error = 'Your forum support has expired. Open “Support & licenses” to connect another Lay Theme license or purchase a 12-month Support Pass before posting.';
+					payload.error = isAwaitingFirstLicense(status) ?
+						'Connect your Lay Theme license before posting. Open “Support & licenses” and enter your license key.' :
+						'Your included support period has ended. Open “Support & licenses” to connect another Lay Theme license or purchase a 12-month Support Pass before posting.';
 				}
 				return payload;
 			});
