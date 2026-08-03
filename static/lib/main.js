@@ -81,6 +81,14 @@ $(function () {
 		return Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 86400000));
 	}
 
+	function isAwaitingFirstLicense(status) {
+		return Boolean(status &&
+			!status.unavailable &&
+			(!status.keys || !status.keys.length) &&
+			(!status.supportPasses || !status.supportPasses.length) &&
+			!status.supportUntil);
+	}
+
 	function applyLocalSupportPreview(status) {
 		var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 		var preview = new URLSearchParams(window.location.search).get('support-preview');
@@ -240,6 +248,14 @@ $(function () {
 			summary.find('[data-support-dot]').addClass('bg-secondary');
 			summary.find('[data-support-summary-title]').text('Support status unavailable');
 			summary.find('[data-support-summary-date]').text('Please try again later');
+			return;
+		}
+		if (isAwaitingFirstLicense(status)) {
+			items.find('[data-support-label]').text('Connect license');
+			items.find('[data-support-icon]').addClass('text-secondary');
+			summary.find('[data-support-dot]').addClass('bg-secondary');
+			summary.find('[data-support-summary-title]').text('Connect your Lay Theme license');
+			summary.find('[data-support-summary-date]').text('Enter your license key to check your support');
 			return;
 		}
 		if (status.canPost) {
@@ -563,26 +579,11 @@ $(function () {
 		if (status.unavailable) {
 			return '<div class="alert alert-secondary mb-3"><strong>Support status is unavailable.</strong><br><span class="small">' + escapeHtml(status.message || 'Please try again later.') + '</span></div>';
 		}
-		var activeTitle = status.activeSource === 'payment' ? 'Your support pass is active.' : 'Your forum support is active.';
-		var expiredMessage = status.checkoutAvailable ?
-			'Purchase a Support Pass to post product-related questions for another year.' :
-			'Connect an eligible Lay Theme license below to restore posting access.';
-		var summary = status.canPost ?
-			'<div class="alert alert-success"><strong>' + activeTitle + '</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ' — ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
-			'<div class="alert alert-warning"><strong>Your included forum support ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>' + escapeHtml(expiredMessage) + ' If you have another Lay Theme license that is not connected yet, enter it below—your most recent eligible purchase or paid upgrade may extend your included support.<div class="mt-3">' + renderSupportCheckout(status) + '</div></div>' + renderSupportPolicy(status);
-
 		var forumEmail = app.user && app.user.email ? String(app.user.email) : '';
 		var emailDescription = forumEmail ?
 			'Your forum account uses <strong>' + escapeHtml(forumEmail) + '</strong>. If the license is registered to this email address, we will connect it immediately. If it is registered to a different email address, we will send a confirmation link to the license owner. Once confirmed, the license will be connected and included when we calculate your support availability.' :
 			'If the license is registered to your forum account email, we will connect it immediately. If it is registered to a different email address, we will send a confirmation link to the license owner. Once confirmed, the license will be connected and included when we calculate your support availability.';
-		var licenseDescription = status.canPost && status.activeSource === 'payment' ?
-			'Your current support is provided by the pass above. Your connected licenses remain available here for reference.' :
-			'We use your most recent license purchase or paid upgrade to calculate included support.';
-		var licenseTools =
-			'<p class="small text-body-secondary">' + licenseDescription + '</p>' +
-			renderKeys(status.keys, status) +
-			'<hr class="my-4">' +
-			'<h6 class="fw-semibold">Connect another license</h6>' +
+		var claimForm =
 			'<p class="small text-body-secondary">' + emailDescription + '</p>' +
 			'<form data-support-claim-form>' +
 				'<label class="form-label" for="lay-support-license-key">License key</label>' +
@@ -591,6 +592,30 @@ $(function () {
 					'<button class="btn btn-primary" type="submit">Connect license</button>' +
 				'</div>' +
 			'</form>';
+
+		if (isAwaitingFirstLicense(status)) {
+			return '<div class="mb-4">' +
+				'<h5 class="fw-semibold">Please enter your license key</h5>' +
+				'<p class="text-body-secondary mb-0">Connect your Lay Theme license to check your included forum support and posting access.</p>' +
+			'</div>' + claimForm;
+		}
+		var activeTitle = status.activeSource === 'payment' ? 'Your support pass is active.' : 'Your forum support is active.';
+		var expiredMessage = status.checkoutAvailable ?
+			'Purchase a Support Pass to post product-related questions for another year.' :
+			'Connect an eligible Lay Theme license below to restore posting access.';
+		var summary = status.canPost ?
+			'<div class="alert alert-success"><strong>' + activeTitle + '</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ' — ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
+			'<div class="alert alert-warning"><strong>Your included forum support ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>' + escapeHtml(expiredMessage) + ' If you have another Lay Theme license that is not connected yet, enter it below—your most recent eligible purchase or paid upgrade may extend your included support.<div class="mt-3">' + renderSupportCheckout(status) + '</div></div>' + renderSupportPolicy(status);
+
+		var licenseDescription = status.canPost && status.activeSource === 'payment' ?
+			'Your current support is provided by the pass above. Your connected licenses remain available here for reference.' :
+			'We use your most recent license purchase or paid upgrade to calculate included support.';
+		var licenseTools =
+			'<p class="small text-body-secondary">' + licenseDescription + '</p>' +
+			renderKeys(status.keys, status) +
+			'<hr class="my-4">' +
+			'<h6 class="fw-semibold">Connect another license</h6>' +
+			claimForm;
 		var licenseSection = status.canPost && status.activeSource === 'payment' ?
 			'<details class="license-gate-manage-licenses border rounded-2 mt-4"><summary class="fw-semibold p-3">Manage connected licenses</summary><div class="border-top p-3">' + licenseTools + '</div></details>' :
 			'<h6 class="fw-semibold mt-4">Your licenses</h6>' + licenseTools;
