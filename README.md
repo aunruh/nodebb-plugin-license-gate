@@ -50,7 +50,7 @@ When enabled, the plugin:
 2. Automatically discovers licenses using the forum account email once per 24 hours.
 3. Adds a **Support** item to the Harmony desktop and mobile navigation.
 4. Shows support passes separately from masked licenses, purchases, paid upgrades, and remaining support time.
-5. Lets a user connect another key. A different license-owner email triggers the service's confirmation-email flow.
+5. Lets a user connect another key. A different license-owner email triggers the service's confirmation-email flow. A key already connected to another account requires an explicit owner-email transfer confirmation.
 6. Starts the Dodo Payments Support Pass checkout when payments are enabled, returns to the forum after payment, and refreshes the modal until the signed webhook activates the pass.
 7. Shows administrators a compact support summary for the topic author directly below the topic metadata and beside every topic on the Recent page. The corresponding APIs are protected by a server-side administrator check and never return license keys or email addresses.
 8. When posting enforcement is enabled, blocks both new topics and replies for regular users whose support has expired. The check runs on the NodeBB server, administrators and global moderators are exempt, editing and reading remain available, and a temporary support-service outage fails open.
@@ -73,6 +73,7 @@ The plugin calls:
 - `POST /v1/accounts/:uid/checkout`
 
 Registration continues to use the existing WordPress License Manager connection during this rollout.
+When support integration is enabled, registration also rejects a key that is already connected to another forum account. The owner can transfer it later by confirming the transfer email from an existing forum account.
 
 ## Installation
 

@@ -769,7 +769,9 @@ $(function () {
 			require(['api', 'alerts'], function (api, alerts) {
 				api.post('/plugins/license-gate/license-claims', { licenseKey: licenseKey })
 					.then(function (result) {
-						if (result.status === 'verification_required') {
+						if (result.status === 'transfer_verification_required') {
+							alerts.success('This license is connected to another forum account. A transfer confirmation email was sent to ' + result.sentTo + '.');
+						} else if (result.status === 'verification_required') {
 							alerts.success('A confirmation email was sent to ' + result.sentTo + '.');
 						} else {
 							alerts.success('Your license has been connected.');

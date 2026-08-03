@@ -473,6 +473,12 @@ async function checkLicenseKey(params) {
 	}
 
 	await validateWithLicenseManager(key, settings);
+	if (settings.supportEnabled && settings.supportServiceUrl && settings.supportServiceApiKey) {
+		await supportServiceRequest('/v1/registration/check', settings, {
+			method: 'POST',
+			body: { licenseKey: key },
+		});
+	}
 	return params;
 }
 
