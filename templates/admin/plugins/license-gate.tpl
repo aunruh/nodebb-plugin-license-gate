@@ -2,6 +2,96 @@
 	<!-- IMPORT admin/partials/settings/header.tpl -->
 
 	<div class="row settings m-0">
+		<div class="col-12 px-0 mb-5">
+			<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+				<div>
+					<h5 class="fw-bold tracking-tight settings-header mb-1">Support funnel</h5>
+					<p class="form-text text-body-secondary mb-0">Unique forum accounts that loaded the forum during the selected period. Reloading a page does not increase the account count.</p>
+				</div>
+				<div class="btn-group" role="group" aria-label="Analytics period">
+					<a class="btn btn-outline-secondary {period7Class}" href="{config.relative_path}/admin/plugins/license-gate?days=7">7 days</a>
+					<a class="btn btn-outline-secondary {period30Class}" href="{config.relative_path}/admin/plugins/license-gate?days=30">30 days</a>
+					<a class="btn btn-outline-secondary {period90Class}" href="{config.relative_path}/admin/plugins/license-gate?days=90">90 days</a>
+					<a class="btn btn-outline-secondary {period365Class}" href="{config.relative_path}/admin/plugins/license-gate?days=365">1 year</a>
+				</div>
+			</div>
+
+			{{{ if !analyticsConfigured }}}
+			<div class="alert alert-secondary mb-0">Enable and configure the support entitlement service below to view analytics.</div>
+			{{{ else }}}
+				{{{ if analyticsError }}}
+				<div class="alert alert-warning mb-0"><strong>Analytics are temporarily unavailable.</strong> {analyticsError}</div>
+				{{{ end }}}
+				{{{ if analyticsAvailable }}}
+				<div class="alert alert-info py-2">Tracking begins when this analytics update is deployed. Earlier visits and key connection attempts cannot be reconstructed reliably.</div>
+
+				<div class="row g-3 mb-4">
+					<div class="col-6 col-lg-3">
+						<div class="card h-100"><div class="card-body">
+							<div class="text-body-secondary small">Forum visitors</div>
+							<div class="fs-2 fw-semibold">{analytics.overview.visitors}</div>
+							<div class="small text-body-secondary">unique logged-in accounts</div>
+						</div></div>
+					</div>
+					<div class="col-6 col-lg-3">
+						<div class="card h-100"><div class="card-body">
+							<div class="text-body-secondary small">Unable to post</div>
+							<div class="fs-2 fw-semibold">{analytics.overview.blockedUsers}</div>
+							<div class="small text-body-secondary">{analytics.overview.blockedRate}% of visitors</div>
+						</div></div>
+					</div>
+					<div class="col-6 col-lg-3">
+						<div class="card h-100"><div class="card-body">
+							<div class="text-body-secondary small">Actually blocked</div>
+							<div class="fs-2 fw-semibold">{analytics.overview.postingBlockedUsers}</div>
+							<div class="small text-body-secondary">{analytics.overview.postingBlockAttempts} posting attempts</div>
+						</div></div>
+					</div>
+					<div class="col-6 col-lg-3">
+						<div class="card h-100"><div class="card-body">
+							<div class="text-body-secondary small">Support Pass buyers</div>
+							<div class="fs-2 fw-semibold">{analytics.payments.paidUsers}</div>
+							<div class="small text-body-secondary">{analytics.payments.blockedConversionRate}% of gated users</div>
+						</div></div>
+					</div>
+				</div>
+
+				<div class="row g-4">
+					<div class="col-12 col-xl-4">
+						<div class="card h-100"><div class="card-body">
+							<h6 class="fw-bold">Why posting was unavailable</h6>
+							<div class="d-flex justify-content-between border-bottom py-2"><span>No connected license</span><strong>{analytics.overview.noLicenseUsers}</strong></div>
+							<div class="d-flex justify-content-between border-bottom py-2"><span>Included support expired</span><strong>{analytics.overview.expiredLicenseUsers}</strong></div>
+							<div class="d-flex justify-content-between py-2"><span>Support active</span><strong>{analytics.overview.activeUsers}</strong></div>
+						</div></div>
+					</div>
+
+					<div class="col-12 col-xl-4">
+						<div class="card h-100"><div class="card-body">
+							<h6 class="fw-bold">License connections</h6>
+							<p class="small text-body-secondary">{analytics.licenses.claimUsers} accounts entered a key in the Support &amp; licenses window.</p>
+							<div class="d-flex justify-content-between border-bottom py-2"><span>No key → support active</span><strong>{analytics.licenses.noLicenseToActive}</strong></div>
+							<div class="d-flex justify-content-between border-bottom py-2"><span>No key → still expired</span><strong>{analytics.licenses.noLicenseToExpired}</strong></div>
+							<div class="d-flex justify-content-between border-bottom py-2"><span>Expired key → active with new key</span><strong>{analytics.licenses.expiredToActive}</strong></div>
+							<div class="d-flex justify-content-between py-2"><span>Expired key → still expired</span><strong>{analytics.licenses.expiredToExpired}</strong></div>
+						</div></div>
+					</div>
+
+					<div class="col-12 col-xl-4">
+						<div class="card h-100"><div class="card-body">
+							<h6 class="fw-bold">Support Pass conversion</h6>
+							<div class="d-flex justify-content-between border-bottom py-2"><span>Checkout opened</span><strong>{analytics.payments.checkoutUsers}</strong></div>
+							<div class="d-flex justify-content-between border-bottom py-2"><span>Paid</span><strong>{analytics.payments.paidUsers}</strong></div>
+							<div class="d-flex justify-content-between border-bottom py-2"><span>Gated account → paid</span><strong>{analytics.payments.blockedToPaidUsers}</strong></div>
+							<div class="d-flex justify-content-between py-2"><span>Checkout conversion</span><strong>{analytics.payments.checkoutConversionRate}%</strong></div>
+							{{{ if analytics.payments.failedOrders }}}<div class="small text-danger mt-2">{analytics.payments.failedOrders} failed checkout(s)</div>{{{ end }}}
+						</div></div>
+					</div>
+				</div>
+				{{{ end }}}
+			{{{ end }}}
+		</div>
+
 		<div class="col-12 col-md-8 px-0 mb-4">
 			{{{ if success }}}
 			<div class="alert alert-success">{success}</div>

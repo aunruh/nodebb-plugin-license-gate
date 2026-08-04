@@ -54,6 +54,18 @@ function addAdminNavigation(data) {
 async function adminGetSettings(req, res) {
 	const settings = await getSettings();
 	const success = req.flash ? req.flash('success') : [];
+	const requestedDays = Number(req.query?.days);
+	const analyticsDays = [7, 30, 90, 365].includes(requestedDays) ? requestedDays : 30;
+	let analytics = null;
+	let analyticsError = '';
+	const analyticsConfigured = Boolean(settings.supportEnabled && settings.supportServiceUrl && settings.supportServiceApiKey);
+	if (analyticsConfigured) {
+		try {
+			analytics = await supportServiceRequest(`/v1/admin/analytics?days=${analyticsDays}`, settings);
+		} catch (error) {
+			analyticsError = error.message;
+		}
+	}
 	res.render('admin/plugins/license-gate', {
 		title: 'License Gate Settings',
 		hideSave: true,
@@ -64,6 +76,15 @@ async function adminGetSettings(req, res) {
 		supportEnforcementEnabled: asBoolean(settings.supportEnforcementEnabled, false),
 		supportServiceUrl: settings.supportServiceUrl || '',
 		supportServiceApiKey: settings.supportServiceApiKey || '',
+		analyticsConfigured,
+		analyticsAvailable: Boolean(analytics),
+		analyticsError,
+		analytics,
+		analyticsDays,
+		period7Class: analyticsDays === 7 ? 'active' : '',
+		period30Class: analyticsDays === 30 ? 'active' : '',
+		period90Class: analyticsDays === 90 ? 'active' : '',
+		period365Class: analyticsDays === 365 ? 'active' : '',
 		success: success && success.length ? success[0] : '',
 	});
 }
@@ -97,7 +118,7 @@ async function addApiRoutes({ router, middleware, helpers }) {
 		const settings = await getSettings();
 		assertSupportIntegration(settings);
 		await syncSupportAccount(req.uid, settings, { discover: true });
-		const status = await supportServiceRequest(`/v1/accounts/${req.uid}/support-status`, settings);
+		const status = await supportServiceRequest(`/v1/accounts/${req.uid}/support-status?track=gate_viewed`, settings);
 		status.postingEnforced = settings.supportEnforcementEnabled;
 		helpers.formatApiResponse(200, res, status);
 	});
@@ -113,7 +134,7 @@ async function addApiRoutes({ router, middleware, helpers }) {
 		await syncSupportAccount(req.uid, settings);
 		const result = await supportServiceRequest('/v1/license-claims', settings, {
 			method: 'POST',
-			body: { nodebbUid: req.uid, licenseKey },
+			body: { nodebbUid: req.uid, licenseKey, source: 'support_modal' },
 		});
 		helpers.formatApiResponse(200, res, result);
 	});
@@ -340,6 +361,17 @@ async function enforceSupportForPosting(data) {
 
 	const postingError = getPostingError(status);
 	if (postingError) {
+		try {
+			await supportServiceRequest(`/v1/accounts/${uid}/events`, settings, {
+				method: 'POST',
+				body: {
+					eventType: 'posting_blocked',
+					action: data?.tid ? 'posts.reply' : 'topics.post',
+				},
+			});
+		} catch (error) {
+			winston.warn(`[${PLUGIN_ID}] Could not track blocked posting attempt for uid ${uid}: ${error.message}`);
+		}
 		const error = new Error(postingError);
 		error.code = 'SUPPORT_REQUIRED';
 		throw error;
@@ -367,7 +399,7 @@ async function onUserCreate({ user: createdUser, data }) {
 		if (licenseKey) {
 			await supportServiceRequest('/v1/license-claims', settings, {
 				method: 'POST',
-				body: { nodebbUid: account.nodebbUid, licenseKey },
+				body: { nodebbUid: account.nodebbUid, licenseKey, source: 'registration' },
 			});
 		}
 	} catch (error) {
