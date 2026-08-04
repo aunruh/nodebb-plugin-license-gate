@@ -60,6 +60,7 @@
 					<div class="col-12 col-xl-4">
 						<div class="card h-100"><div class="card-body">
 							<h6 class="fw-bold">Why posting was unavailable</h6>
+							<p class="small text-body-secondary">An account can appear in more than one state when its support status changes during the period.</p>
 							<div class="d-flex justify-content-between border-bottom py-2"><span>No connected license</span><strong>{analytics.overview.noLicenseUsers}</strong></div>
 							<div class="d-flex justify-content-between border-bottom py-2"><span>Included support expired</span><strong>{analytics.overview.expiredLicenseUsers}</strong></div>
 							<div class="d-flex justify-content-between py-2"><span>Support active</span><strong>{analytics.overview.activeUsers}</strong></div>
