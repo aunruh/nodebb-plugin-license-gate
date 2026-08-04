@@ -58,15 +58,25 @@
 	function loadAnalytics(days) {
 		var $body = $('#license-gate-dashboard-body');
 		$body.html('<div class="py-4 text-center text-body-secondary"><i class="fa fa-circle-o-notch fa-spin me-2"></i>Loading support analytics…</div>');
-		require(['api'], function (api) {
-			api.get('/plugins/license-gate/admin/analytics', { days: days })
-				.then(renderAnalytics)
-				.catch(function (error) {
-					$body.empty().append(
-						$('<div class="alert alert-warning mb-0"></div>').text(error.message || 'Support analytics are temporarily unavailable.')
-					);
+		var relativePath = window.config?.relative_path || '';
+		window.fetch(relativePath + '/api/v3/plugins/license-gate/admin/analytics?days=' + days, {
+			credentials: 'same-origin',
+			headers: { accept: 'application/json' },
+		})
+			.then(function (response) {
+				return response.json().then(function (payload) {
+					if (!response.ok) {
+						throw new Error(payload?.status?.message || payload?.error?.message || 'Support analytics are temporarily unavailable.');
+					}
+					return payload.response || payload;
 				});
-		});
+			})
+			.then(renderAnalytics)
+			.catch(function (error) {
+				$body.empty().append(
+					$('<div class="alert alert-warning mb-0"></div>').text(error.message || 'Support analytics are temporarily unavailable.')
+				);
+			});
 	}
 
 	function addDashboard() {
