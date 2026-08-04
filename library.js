@@ -2,6 +2,7 @@
 
 const http = require('http');
 const https = require('https');
+const path = require('path');
 const { URL } = require('url');
 const nconf = require.main.require('nconf');
 
@@ -49,6 +50,11 @@ function addAdminNavigation(data) {
 		name: 'License Gate',
 	});
 	return data;
+}
+
+function addAdminScripts(scripts) {
+	scripts.push(`${nconf.get('relative_path')}/plugins/license-gate/admin-dashboard.js`);
+	return scripts;
 }
 
 async function adminGetSettings(req, res) {
@@ -196,6 +202,18 @@ async function addApiRoutes({ router, middleware, helpers }) {
 
 		return helpers.formatApiResponse(200, res, { users: Object.fromEntries(summaries) });
 	});
+
+	routeHelpers.setupApiRoute(router, 'get', '/license-gate/admin/analytics', middlewares, async (req, res) => {
+		if (!await user.isAdministrator(req.uid)) {
+			return helpers.formatApiResponse(403, res, new Error('Only forum administrators can view support analytics.'));
+		}
+		const requestedDays = Number(req.query?.days);
+		const days = [7, 30, 90, 365].includes(requestedDays) ? requestedDays : 30;
+		const settings = await getSettings();
+		assertSupportIntegration(settings);
+		const analytics = await supportServiceRequest(`/v1/admin/analytics?days=${days}`, settings);
+		return helpers.formatApiResponse(200, res, analytics);
+	});
 }
 
 function onAppLoad(data) {
@@ -204,6 +222,9 @@ function onAppLoad(data) {
 	data.router.get('/admin/plugins/license-gate', data.middleware.admin.buildHeader, helpers.tryRoute(adminGetSettings));
 	data.router.get('/api/admin/plugins/license-gate', helpers.tryRoute(adminGetSettings));
 	data.router.post('/admin/plugins/license-gate', data.middleware.admin.buildHeader, helpers.tryRoute(adminPostSettings));
+	data.router.get('/plugins/license-gate/admin-dashboard.js', (req, res) => {
+		res.type('application/javascript').sendFile(path.join(__dirname, 'static/lib/admin-dashboard.js'));
+	});
 
 	// Clear stale session.registration when there are no interstitials (e.g. after switching
 	// from interstitial to register.build). Runs before the router so registrationComplete won't redirect.
@@ -518,6 +539,7 @@ module.exports = {
 	addLicenseField,
 	checkLicenseKey,
 	addAdminNavigation,
+	addAdminScripts,
 	onAppLoad,
 	addApiRoutes,
 	onUserCreate,
