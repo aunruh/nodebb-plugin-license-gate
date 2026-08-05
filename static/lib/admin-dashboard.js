@@ -85,8 +85,8 @@
 			return;
 		}
 
-		var periods = [7, 30, 90, 365].map(function (days) {
-			var label = days === 365 ? '1 year' : days + ' days';
+		var periods = [1, 7, 30, 90, 365].map(function (days) {
+			var label = days === 1 ? 'Today' : (days === 365 ? '1 year' : days + ' days');
 			return '<button type="button" class="btn btn-sm btn-outline-secondary' + (days === 30 ? ' active' : '') + '" data-support-days="' + days + '">' + label + '</button>';
 		}).join('');
 		var html = '<div id="license-gate-support-funnel" class="card mb-3">' +

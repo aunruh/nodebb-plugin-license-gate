@@ -61,7 +61,7 @@ async function adminGetSettings(req, res) {
 	const settings = await getSettings();
 	const success = req.flash ? req.flash('success') : [];
 	const requestedDays = Number(req.query?.days);
-	const analyticsDays = [7, 30, 90, 365].includes(requestedDays) ? requestedDays : 30;
+	const analyticsDays = [1, 7, 30, 90, 365].includes(requestedDays) ? requestedDays : 30;
 	let analytics = null;
 	let analyticsError = '';
 	const analyticsConfigured = Boolean(settings.supportEnabled && settings.supportServiceUrl && settings.supportServiceApiKey);
@@ -87,6 +87,7 @@ async function adminGetSettings(req, res) {
 		analyticsError,
 		analytics,
 		analyticsDays,
+		period1Class: analyticsDays === 1 ? 'active' : '',
 		period7Class: analyticsDays === 7 ? 'active' : '',
 		period30Class: analyticsDays === 30 ? 'active' : '',
 		period90Class: analyticsDays === 90 ? 'active' : '',
@@ -208,7 +209,7 @@ async function addApiRoutes({ router, middleware, helpers }) {
 			return helpers.formatApiResponse(403, res, new Error('Only forum administrators can view support analytics.'));
 		}
 		const requestedDays = Number(req.query?.days);
-		const days = [7, 30, 90, 365].includes(requestedDays) ? requestedDays : 30;
+		const days = [1, 7, 30, 90, 365].includes(requestedDays) ? requestedDays : 30;
 		const settings = await getSettings();
 		assertSupportIntegration(settings);
 		const analytics = await supportServiceRequest(`/v1/admin/analytics?days=${days}`, settings);

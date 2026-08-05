@@ -9,6 +9,7 @@
 					<p class="form-text text-body-secondary mb-0">Unique forum accounts that loaded the forum during the selected period. Reloading a page does not increase the account count.</p>
 				</div>
 				<div class="btn-group" role="group" aria-label="Analytics period">
+					<a class="btn btn-outline-secondary {period1Class}" href="{config.relative_path}/admin/plugins/license-gate?days=1">Today</a>
 					<a class="btn btn-outline-secondary {period7Class}" href="{config.relative_path}/admin/plugins/license-gate?days=7">7 days</a>
 					<a class="btn btn-outline-secondary {period30Class}" href="{config.relative_path}/admin/plugins/license-gate?days=30">30 days</a>
 					<a class="btn btn-outline-secondary {period90Class}" href="{config.relative_path}/admin/plugins/license-gate?days=90">90 days</a>
