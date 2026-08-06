@@ -508,17 +508,7 @@ $(function () {
 		});
 	}
 
-	function renderRecentAuthorSupport(topic, summary) {
-		var topicItem = $('[component="category/topic"][data-tid="' + Number(topic.tid) + '"]');
-		if (!topicItem.length) {
-			return;
-		}
-		topicItem.removeAttr('data-license-gate-support-loading');
-		var header = topicItem.find('[component="topic/header"]');
-		if (!header.length || header.siblings('[component="license-gate/recent-author-support"]').length) {
-			return;
-		}
-
+	function getAdminSupportIndicator(summary) {
 		var dotClass = 'bg-secondary';
 		var label = 'Support status unavailable';
 		if (summary && !summary.unavailable) {
@@ -532,13 +522,69 @@ $(function () {
 				label = 'Support expired' + (summary.supportUntil ? ' ' + formatRelativeAge(summary.supportUntil) : '');
 			}
 		}
+		return { dotClass: dotClass, label: label };
+	}
+
+	function renderRecentAuthorSupport(topic, summary) {
+		var topicItem = $('[component="category/topic"][data-tid="' + Number(topic.tid) + '"]');
+		if (!topicItem.length) {
+			return;
+		}
+		topicItem.removeAttr('data-license-gate-support-loading');
+		var header = topicItem.find('[component="topic/header"]');
+		if (!header.length || header.siblings('[component="license-gate/recent-author-support"]').length) {
+			return;
+		}
+
+		var indicator = getAdminSupportIndicator(summary);
 
 		header.after(
 			'<div component="license-gate/recent-author-support" class="license-gate-recent-author-support d-flex align-items-center gap-2 w-100 mt-1" title="Visible to forum administrators only">' +
-				'<span class="license-gate-support-dot ' + dotClass + '" aria-hidden="true"></span>' +
-				'<span class="text-body-secondary">' + escapeHtml(label) + '</span>' +
+				'<span class="license-gate-support-dot ' + indicator.dotClass + '" aria-hidden="true"></span>' +
+				'<span class="text-body-secondary">' + escapeHtml(indicator.label) + '</span>' +
 			'</div>'
 		);
+	}
+
+	function renderAdminProfileSupport(summary) {
+		var panel = $('[component="license-gate/profile-support"]');
+		if (!panel.length) {
+			return;
+		}
+		var indicator = getAdminSupportIndicator(summary);
+		panel.find('[data-admin-profile-support-dot]')
+			.removeClass('bg-success bg-warning bg-secondary')
+			.addClass(indicator.dotClass);
+		panel.find('[data-admin-profile-support-label]').text(indicator.label);
+	}
+
+	function addAdminProfileSupport() {
+		$('[component="license-gate/profile-support"]').remove();
+		if (!app.user || !app.user.isAdmin || !ajaxify.data || !ajaxify.data.template || !ajaxify.data.template['account/profile']) {
+			return;
+		}
+
+		var targetUid = Number(ajaxify.data.uid);
+		var identity = $('.account .fullname').first().parent();
+		if (!targetUid || !identity.length) {
+			return;
+		}
+
+		var panel = $(
+			'<div component="license-gate/profile-support" class="license-gate-recent-author-support d-flex align-items-center gap-2 mt-1" title="Visible to forum administrators only">' +
+				'<span class="license-gate-support-dot bg-secondary" data-admin-profile-support-dot aria-hidden="true"></span>' +
+				'<span class="text-body-secondary" data-admin-profile-support-label>Checking forum support…</span>' +
+			'</div>'
+		);
+		identity.append(panel);
+
+		require(['api'], function (api) {
+			api.get('/plugins/license-gate/admin/users/' + targetUid + '/support-status')
+				.then(renderAdminProfileSupport)
+				.catch(function () {
+					renderAdminProfileSupport({ unavailable: true });
+				});
+		});
 	}
 
 	function addAdminRecentSupportStatuses(loadedTopics, reset) {
@@ -913,6 +959,7 @@ $(function () {
 	addSupportSummary();
 	addAdminTopicAuthorSupport();
 	addAdminRecentSupportStatuses(null, true);
+	addAdminProfileSupport();
 	if (app.user && app.user.uid) {
 		loadStatus(false);
 	}
@@ -927,6 +974,7 @@ $(function () {
 		addSupportSummary();
 		addAdminTopicAuthorSupport();
 		addAdminRecentSupportStatuses(null, true);
+		addAdminProfileSupport();
 		updateSupportButtons(cachedStatus);
 		window.setTimeout(syncEmailConfirmationUi, 0);
 	});
