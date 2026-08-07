@@ -9,6 +9,7 @@ const nconf = require.main.require('nconf');
 const meta = require.main.require('./src/meta');
 const db = require.main.require('./src/database');
 const user = require.main.require('./src/user');
+const groups = require.main.require('./src/groups');
 const winston = require.main.require('winston');
 const { buildAdminSupportSummary } = require('./lib/admin-support-summary');
 const { shouldCheckSupport, getPostingError } = require('./lib/support-posting-policy');
@@ -40,6 +41,21 @@ async function mapWithConcurrency(items, concurrency, callback) {
 	return results;
 }
 
+async function supportAnalyticsRequest(days, settings, fallbackAdminUid) {
+	let adminUids = [];
+	try {
+		adminUids = await groups.getMembers('administrators', 0, -1);
+	} catch (error) {
+		winston.warn(`[${PLUGIN_ID}] Could not load administrator UIDs for analytics: ${error.message}`);
+	}
+	if (fallbackAdminUid) {
+		adminUids.push(fallbackAdminUid);
+	}
+	adminUids = [...new Set(adminUids.map(Number).filter(uid => Number.isInteger(uid) && uid > 0))];
+	const exclusion = adminUids.length ? `&excludeNodebbUids=${encodeURIComponent(adminUids.join(','))}` : '';
+	return supportServiceRequest(`/v1/admin/analytics?days=${days}${exclusion}`, settings);
+}
+
 /* ---------- Admin settings page ---------- */
 
 function addAdminNavigation(data) {
@@ -67,7 +83,7 @@ async function adminGetSettings(req, res) {
 	const analyticsConfigured = Boolean(settings.supportEnabled && settings.supportServiceUrl && settings.supportServiceApiKey);
 	if (analyticsConfigured) {
 		try {
-			analytics = await supportServiceRequest(`/v1/admin/analytics?days=${analyticsDays}`, settings);
+			analytics = await supportAnalyticsRequest(analyticsDays, settings, req.uid);
 		} catch (error) {
 			analyticsError = error.message;
 		}
@@ -125,7 +141,9 @@ async function addApiRoutes({ router, middleware, helpers }) {
 		const settings = await getSettings();
 		assertSupportIntegration(settings);
 		await syncSupportAccount(req.uid, settings, { discover: true });
-		const status = await supportServiceRequest(`/v1/accounts/${req.uid}/support-status?track=gate_viewed`, settings);
+		const isAdministrator = await user.isAdministrator(req.uid);
+		const trackingQuery = isAdministrator ? '' : '?track=gate_viewed';
+		const status = await supportServiceRequest(`/v1/accounts/${req.uid}/support-status${trackingQuery}`, settings);
 		status.postingEnforced = settings.supportEnforcementEnabled;
 		helpers.formatApiResponse(200, res, status);
 	});
@@ -212,7 +230,7 @@ async function addApiRoutes({ router, middleware, helpers }) {
 		const days = [1, 7, 30, 90, 365].includes(requestedDays) ? requestedDays : 30;
 		const settings = await getSettings();
 		assertSupportIntegration(settings);
-		const analytics = await supportServiceRequest(`/v1/admin/analytics?days=${days}`, settings);
+		const analytics = await supportAnalyticsRequest(days, settings, req.uid);
 		return helpers.formatApiResponse(200, res, analytics);
 	});
 }

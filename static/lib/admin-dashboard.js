@@ -25,7 +25,7 @@
 
 	function renderAnalytics(data) {
 		var html = '<div class="row g-3 mb-3">' +
-			metric('Forum visitors', data.overview.visitors, 'unique logged-in accounts') +
+			metric('Forum visitors', data.overview.visitors, 'unique non-admin accounts') +
 			metric('Unable to post', data.overview.blockedUsers, data.overview.blockedRate + '% of visitors') +
 			metric('Actually blocked', data.overview.postingBlockedUsers, number(data.overview.postingBlockAttempts) + ' posting attempts') +
 			metric('Support Pass buyers', data.payments.paidUsers, data.payments.blockedConversionRate + '% of gated users') +

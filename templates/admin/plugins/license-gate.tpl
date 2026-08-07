@@ -31,7 +31,7 @@
 						<div class="card h-100"><div class="card-body">
 							<div class="text-body-secondary small">Forum visitors</div>
 							<div class="fs-2 fw-semibold">{analytics.overview.visitors}</div>
-							<div class="small text-body-secondary">unique logged-in accounts</div>
+							<div class="small text-body-secondary">unique non-admin accounts</div>
 						</div></div>
 					</div>
 					<div class="col-6 col-lg-3">
