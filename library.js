@@ -14,6 +14,7 @@ const posts = require.main.require('./src/posts');
 const topics = require.main.require('./src/topics');
 const winston = require.main.require('winston');
 const { buildAdminSupportSummary } = require('./lib/admin-support-summary');
+const { bearerMatches } = require('./lib/bearer-auth');
 const { buildForumActivity, completeWeekRange } = require('./lib/forum-activity');
 const { shouldCheckSupport, getPostingError } = require('./lib/support-posting-policy');
 
@@ -283,8 +284,11 @@ async function addApiRoutes({ router, middleware, helpers }) {
 		return helpers.formatApiResponse(200, res, analytics);
 	});
 
-	routeHelpers.setupApiRoute(router, 'get', '/license-gate/admin/forum-activity', middlewares, async (req, res) => {
-		if (!await user.isAdminOrGlobalMod(req.uid)) {
+	routeHelpers.setupApiRoute(router, 'get', '/license-gate/admin/forum-activity', [], async (req, res) => {
+		const settings = await getSettings();
+		const sharedKeyAuthorized = bearerMatches(req.headers?.authorization, settings.supportServiceApiKey);
+		const forumStaffAuthorized = req.uid > 0 && await user.isAdminOrGlobalMod(req.uid);
+		if (!sharedKeyAuthorized && !forumStaffAuthorized) {
 			return helpers.formatApiResponse(403, res, new Error('Only forum staff can view forum analytics.'));
 		}
 		const weeks = Number(req.query?.weeks || 12);

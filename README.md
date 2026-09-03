@@ -77,11 +77,11 @@ When support integration is enabled, registration also rejects a key that is alr
 
 ## Forum activity analytics
 
-An administrator or global-moderator API token can request anonymized customer activity from:
+The support service can request anonymized customer activity with the shared `NODEBB_API_KEY`. An administrator or global-moderator NodeBB API token remains supported as a fallback:
 
 ```text
 GET /api/v3/plugins/license-gate/admin/forum-activity?weeks=12
-Authorization: Bearer <NodeBB API token>
+Authorization: Bearer <NODEBB_API_KEY or NodeBB API token>
 ```
 
 Supported periods are 4, 12, 26, and 52 complete Monday-to-Sunday weeks. The response contains daily counts for new topics, replies, all customer posts, unique posters, and unique topic authors. Guests, deleted content, administrators, global moderators, and category moderators are excluded. No post content, usernames, email addresses, or user IDs are returned.
