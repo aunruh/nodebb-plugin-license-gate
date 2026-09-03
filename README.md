@@ -75,6 +75,17 @@ The plugin calls:
 Registration continues to use the existing WordPress License Manager connection during this rollout.
 When support integration is enabled, registration also rejects a key that is already connected to another forum account. The owner can transfer it later by confirming the transfer email from an existing forum account.
 
+## Forum activity analytics
+
+An administrator or global-moderator API token can request anonymized customer activity from:
+
+```text
+GET /api/v3/plugins/license-gate/admin/forum-activity?weeks=12
+Authorization: Bearer <NodeBB API token>
+```
+
+Supported periods are 4, 12, 26, and 52 complete Monday-to-Sunday weeks. The response contains daily counts for new topics, replies, all customer posts, unique posters, and unique topic authors. Guests, deleted content, administrators, global moderators, and category moderators are excluded. No post content, usernames, email addresses, or user IDs are returned.
+
 ## Installation
 
 1. Install the plugin (from your NodeBB root):

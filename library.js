@@ -10,8 +10,11 @@ const meta = require.main.require('./src/meta');
 const db = require.main.require('./src/database');
 const user = require.main.require('./src/user');
 const groups = require.main.require('./src/groups');
+const posts = require.main.require('./src/posts');
+const topics = require.main.require('./src/topics');
 const winston = require.main.require('winston');
 const { buildAdminSupportSummary } = require('./lib/admin-support-summary');
+const { buildForumActivity, completeWeekRange } = require('./lib/forum-activity');
 const { shouldCheckSupport, getPostingError } = require('./lib/support-posting-policy');
 
 const PLUGIN_ID = 'nodebb-plugin-license-gate';
@@ -19,6 +22,9 @@ const SETTINGS_HASH = 'nodebb-plugin-license-gate';
 const DISCOVERY_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const ADMIN_BATCH_MAX_USERS = 50;
 const ADMIN_BATCH_CONCURRENCY = 4;
+const FORUM_ANALYTICS_CACHE_MS = 10 * 60 * 1000;
+const FORUM_ANALYTICS_CHUNK_SIZE = 500;
+const forumAnalyticsCache = new Map();
 
 function asBoolean(value, fallback) {
 	if (value === undefined || value === null || value === '') {
@@ -39,6 +45,49 @@ async function mapWithConcurrency(items, concurrency, callback) {
 	});
 	await Promise.all(workers);
 	return results;
+}
+
+async function loadInChunks(items, callback) {
+	const results = [];
+	for (let index = 0; index < items.length; index += FORUM_ANALYTICS_CHUNK_SIZE) {
+		results.push(...await callback(items.slice(index, index + FORUM_ANALYTICS_CHUNK_SIZE)));
+	}
+	return results;
+}
+
+async function getForumActivity(weeks) {
+	const cached = forumAnalyticsCache.get(weeks);
+	if (cached && cached.expiresAt > Date.now()) return cached.data;
+
+	const range = completeWeekRange(weeks);
+	const from = new Date(`${range.startDate}T00:00:00.000Z`).getTime() - 3 * 60 * 60 * 1000;
+	const to = new Date(`${range.endExclusiveDate}T00:00:00.000Z`).getTime() + 3 * 60 * 60 * 1000;
+	const [pids, staffUsers] = await Promise.all([
+		db.getSortedSetRangeByScore('posts:pid', 0, -1, from, to),
+		user.getAdminsandGlobalModsandModerators(),
+	]);
+	const postData = await loadInChunks(pids, ids => posts.getPostsFields(ids, [
+		'pid', 'tid', 'uid', 'timestamp', 'deleted',
+	]));
+	const tids = [...new Set(postData.filter(Boolean).map(post => post.tid))];
+	const topicData = await loadInChunks(tids, ids => topics.getTopicsFields(ids, [
+		'tid', 'mainPid', 'deleted',
+	]));
+	const data = {
+		period: {
+			weeks: range.weeks,
+			startDate: range.startDate,
+			endDate: range.endDate,
+		},
+		daily: buildForumActivity({
+			posts: postData,
+			topics: topicData,
+			staffUids: staffUsers.map(account => account.uid),
+			range,
+		}),
+	};
+	forumAnalyticsCache.set(weeks, { expiresAt: Date.now() + FORUM_ANALYTICS_CACHE_MS, data });
+	return data;
 }
 
 async function supportAnalyticsRequest(days, settings, fallbackAdminUid) {
@@ -232,6 +281,17 @@ async function addApiRoutes({ router, middleware, helpers }) {
 		assertSupportIntegration(settings);
 		const analytics = await supportAnalyticsRequest(days, settings, req.uid);
 		return helpers.formatApiResponse(200, res, analytics);
+	});
+
+	routeHelpers.setupApiRoute(router, 'get', '/license-gate/admin/forum-activity', middlewares, async (req, res) => {
+		if (!await user.isAdminOrGlobalMod(req.uid)) {
+			return helpers.formatApiResponse(403, res, new Error('Only forum staff can view forum analytics.'));
+		}
+		const weeks = Number(req.query?.weeks || 12);
+		if (![4, 12, 26, 52].includes(weeks)) {
+			return helpers.formatApiResponse(400, res, new Error('Please select a valid analysis period.'));
+		}
+		return helpers.formatApiResponse(200, res, await getForumActivity(weeks));
 	});
 }
 
