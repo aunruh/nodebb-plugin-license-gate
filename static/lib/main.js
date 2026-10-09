@@ -1,5 +1,5 @@
 'use strict';
-/* global utils, app, config, ajaxify, socket */
+/* global utils, app, config, ajaxify */
 
 $(function () {
 	var cachedStatus = null;
@@ -138,15 +138,17 @@ $(function () {
 	function resendConfirmationEmail(button) {
 		var originalLabel = button.text();
 		button.prop('disabled', true).text('Sending…');
-		socket.emit('user.emailConfirm', {}, function (error) {
-			button.prop('disabled', false).text(originalLabel);
-			require(['alerts'], function (alerts) {
-				if (error) {
+		require(['api', 'alerts'], function (api, alerts) {
+			api.post('/plugins/license-gate/resend-email-confirmation', {})
+				.then(function () {
+					alerts.success('Confirmation email sent. Please check your inbox and spam folder.');
+				})
+				.catch(function (error) {
 					alerts.error(error);
-					return;
-				}
-				alerts.success('Confirmation email sent. Please check your inbox and spam folder.');
-			});
+				})
+				.finally(function () {
+					button.prop('disabled', false).text(originalLabel);
+				});
 		});
 	}
 

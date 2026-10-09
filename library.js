@@ -15,6 +15,7 @@ const topics = require.main.require('./src/topics');
 const winston = require.main.require('winston');
 const { buildAdminSupportSummary } = require('./lib/admin-support-summary');
 const { bearerMatches } = require('./lib/bearer-auth');
+const { resendConfirmationEmail } = require('./lib/email-confirmation');
 const { buildForumActivity, completeWeekRange } = require('./lib/forum-activity');
 const { shouldCheckSupport, getPostingError } = require('./lib/support-posting-policy');
 
@@ -186,6 +187,11 @@ async function adminPostSettings(req, res) {
 async function addApiRoutes({ router, middleware, helpers }) {
 	const routeHelpers = require.main.require('./src/routes/helpers');
 	const middlewares = [middleware.ensureLoggedIn];
+
+	routeHelpers.setupApiRoute(router, 'post', '/license-gate/resend-email-confirmation', middlewares, async (req, res) => {
+		const result = await resendConfirmationEmail(user, req.uid);
+		helpers.formatApiResponse(200, res, result);
+	});
 
 	routeHelpers.setupApiRoute(router, 'get', '/license-gate/support-status', middlewares, async (req, res) => {
 		const settings = await getSettings();
