@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
 	SUPPORT_REQUIRED_MESSAGE,
+	STUDENT_SUPPORT_REQUIRED_MESSAGE,
 	LICENSE_REQUIRED_MESSAGE,
 	shouldCheckSupport,
 	getPostingError,
@@ -37,6 +38,7 @@ test('exempts administrators, global moderators, guests, and posts released from
 test('blocks expired support and allows active support', () => {
 	assert.equal(getPostingError({ canPost: true }), null);
 	assert.equal(getPostingError({ canPost: false, keys: [{ id: 'license' }] }), SUPPORT_REQUIRED_MESSAGE);
+	assert.equal(getPostingError({ canPost: false, keys: [{ id: 'student', licenseType: 'student', includedSupport: false }] }), STUDENT_SUPPORT_REQUIRED_MESSAGE);
 	assert.equal(getPostingError({ canPost: false, supportPasses: [{ id: 'pass' }] }), SUPPORT_REQUIRED_MESSAGE);
 	assert.equal(getPostingError({ canPost: false, supportUntil: '2026-01-01T00:00:00.000Z' }), SUPPORT_REQUIRED_MESSAGE);
 	assert.equal(getPostingError({ canPost: false, keys: [], supportPasses: [], supportUntil: null }), LICENSE_REQUIRED_MESSAGE);

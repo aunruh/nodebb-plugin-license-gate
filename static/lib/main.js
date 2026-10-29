@@ -343,12 +343,13 @@ $(function () {
 			summary.find('[data-support-summary-title]').text('Forum support active · ' + formatDayCount(status.daysRemaining) + ' remaining');
 			summary.find('[data-support-summary-date]').text('Available until ' + formatDate(status.supportUntil));
 		} else {
+			var studentLicense = hasStudentLicense(status);
 			var elapsed = daysSince(status.supportUntil);
-			items.find('[data-support-label]').text('Support expired');
+			items.find('[data-support-label]').text(studentLicense ? 'Support Pass required' : 'Support expired');
 			items.find('[data-support-icon]').addClass('text-warning');
 			summary.find('[data-support-dot]').addClass('bg-warning');
-			summary.find('[data-support-summary-title]').text(elapsed ? 'Your included support ended ' + formatDayCount(elapsed) + ' ago' : 'Your included support ended today');
-			summary.find('[data-support-summary-date]').text('Renew support to post again');
+			summary.find('[data-support-summary-title]').text(studentLicense ? 'Your student license does not include forum support' : (elapsed ? 'Your included support ended ' + formatDayCount(elapsed) + ' ago' : 'Your included support ended today'));
+			summary.find('[data-support-summary-date]').text(studentLicense ? 'Purchase a Support Pass to post' : 'Renew support to post again');
 		}
 	}
 
@@ -358,6 +359,12 @@ $(function () {
 
 	function isPostingBlocked(status) {
 		return Boolean(status && !status.unavailable && status.postingEnforced && status.canPost === false && !(app.user && (app.user.isAdmin || app.user.isGlobalMod)));
+	}
+
+	function hasStudentLicense(status) {
+		return Boolean(status && status.keys && status.keys.some(function (key) {
+			return key.licenseType === 'student' || key.includedSupport === false;
+		}));
 	}
 
 	function applyComposerSupportGate(postContainer, status) {
@@ -376,14 +383,17 @@ $(function () {
 		}
 
 		var awaitingFirstLicense = isAwaitingFirstLicense(status);
+		var studentLicense = hasStudentLicense(status);
 		var title = awaitingFirstLicense ?
 			'Connect your Lay Theme license to post.' :
-			'Your included support period has ended.';
+			(studentLicense ? 'Your student license does not include forum support.' : 'Your included support period has ended.');
 		var message = awaitingFirstLicense ?
 			'Enter your license key to check your included support and posting access.' :
+			(studentLicense ?
+			'Purchase a 12-month Support Pass to create topics and post replies.' :
 			(status.keys && status.keys.length ?
 			'Connect another eligible Lay Theme license or purchase a 12-month Support Pass to continue posting.' :
-			'Connect a valid Lay Theme license before purchasing a 12-month Support Pass.');
+			'Connect a valid Lay Theme license before purchasing a 12-month Support Pass.'));
 		var notice = $(
 			'<div component="license-gate/composer-support-required" class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-1 py-2 px-3">' +
 				'<div><strong>' + escapeHtml(title) + '</strong><br><span class="small">' + escapeHtml(message) + '</span></div>' +
@@ -635,11 +645,14 @@ $(function () {
 	function renderKey(key, status, featured) {
 		var fullKey = String(key.key || '');
 		var hiddenKey = maskedKey(key);
-		var tier = getLicenseTier(key);
+		var isStudent = key.licenseType === 'student' || key.includedSupport === false;
+		var tier = isStudent ? 'Student' : getLicenseTier(key);
 		var upgrade = key.upgradedAt ?
 			'<div class="small text-body-secondary">Upgraded to ' + escapeHtml(tier) + ' on ' + escapeHtml(formatDate(key.upgradedAt)) + '</div>' : '';
-		var supportNote = featured && status.supportUntil ?
-			'<div class="small mt-2"><i class="fa fa-check-circle text-success me-1" aria-hidden="true"></i>This ' + (key.upgradedAt ? 'upgrade' : 'purchase') + ' is used for your included support until ' + escapeHtml(formatDate(status.supportUntil)) + '.</div>' : '';
+		var supportNote = isStudent ?
+			'<div class="small mt-2 text-warning"><i class="fa fa-graduation-cap me-1" aria-hidden="true"></i>This student license does not include forum support. A Support Pass is required to post.</div>' :
+			(featured && status.supportUntil ?
+			'<div class="small mt-2"><i class="fa fa-check-circle text-success me-1" aria-hidden="true"></i>This ' + (key.upgradedAt ? 'upgrade' : 'purchase') + ' is used for your included support until ' + escapeHtml(formatDate(status.supportUntil)) + '.</div>' : '');
 		var revealButton = fullKey ?
 			'<button type="button" class="btn btn-sm btn-ghost p-1" data-license-key-toggle aria-label="Show full license key" title="Show full license key"><i class="fa fa-eye" aria-hidden="true"></i></button>' : '';
 
@@ -763,9 +776,12 @@ $(function () {
 			'</div>' + claimForm + renderSupportContactHelp('small text-body-secondary mt-3 mb-0');
 		}
 		var activeTitle = status.activeSource === 'payment' ? 'Your support pass is active.' : 'Your forum support is active.';
-		var expiredMessage = status.checkoutAvailable ?
+		var studentLicense = hasStudentLicense(status);
+		var expiredMessage = studentLicense ?
+			'Your student license lets you use Lay Theme and read the forum. Purchase a 12-month Support Pass to create topics and post replies.' :
+			(status.checkoutAvailable ?
 			'Purchase a Support Pass to post product-related questions for another year.' :
-			'Connect an eligible Lay Theme license below to restore posting access.';
+			'Connect an eligible Lay Theme license below to restore posting access.');
 		var expiredLicenseOption =
 			'<div class="d-flex align-items-center gap-3 my-4" aria-hidden="true">' +
 				'<hr class="flex-grow-1 my-0">' +
@@ -779,7 +795,7 @@ $(function () {
 			'</div>';
 		var summary = status.canPost ?
 			'<div class="alert alert-success"><strong>' + activeTitle + '</strong><br>You can post support questions until ' + escapeHtml(formatDate(status.supportUntil)) + ', with ' + escapeHtml(formatDayCount(status.daysRemaining)) + ' remaining.</div>' :
-			'<div class="alert alert-warning"><strong>Your included support period ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.</strong><br>' + escapeHtml(expiredMessage) + '<div class="mt-3">' + renderSupportCheckout(status) + '</div>' + renderSupportContactHelp() + '</div>' + expiredLicenseOption + renderSupportPolicy(status);
+			'<div class="alert alert-warning"><strong>' + (studentLicense ? 'Your student license does not include forum support.' : 'Your included support period ended' + (status.supportUntil ? ' on ' + escapeHtml(formatDate(status.supportUntil)) : '') + '.') + '</strong><br>' + escapeHtml(expiredMessage) + '<div class="mt-3">' + renderSupportCheckout(status) + '</div>' + renderSupportContactHelp() + '</div>' + expiredLicenseOption + renderSupportPolicy(status);
 
 		var licenseDescription = status.canPost && status.activeSource === 'payment' ?
 			'Your current support is provided by the pass above. Your connected licenses remain available here for reference.' :
@@ -937,7 +953,9 @@ $(function () {
 				if (isPostingBlocked(status)) {
 					payload.error = isAwaitingFirstLicense(status) ?
 						'Connect your Lay Theme license before posting. Open “Support & licenses” and enter your license key.' :
-						'Your included support period has ended. Open “Support & licenses” to connect another Lay Theme license or purchase a 12-month Support Pass before posting.';
+						(hasStudentLicense(status) ?
+						'Your student license does not include forum support. Open “Support & licenses” to purchase a 12-month Support Pass before posting.' :
+						'Your included support period has ended. Open “Support & licenses” to connect another Lay Theme license or purchase a 12-month Support Pass before posting.');
 				}
 				return payload;
 			});
